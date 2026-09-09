@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Clock, Lock, CheckCircle2 } from 'lucide-react';
 import { submitPrediction } from '../services/api';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, hexToRgba } from '../contexts/ThemeContext';
 
 export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated }) {
   const { currentUser, activeTheme } = useTheme();
@@ -87,7 +87,7 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
 
         <div className="flex items-center gap-2">
           {/* Countdown or Status Badge */}
-          <div style={!isLive && !isFinished ? { backgroundColor: `color-mix(in srgb, ${activeTheme?.primary || "#ffd700"} 15%, transparent)`, borderColor: `color-mix(in srgb, ${activeTheme?.primary || "#ffd700"} 40%, transparent)`, color: activeTheme?.primary || "#ffd700" } : {}} className={`px-2 py-0.5 rounded-full text-[11px] font-bold font-orbitron flex items-center gap-1 ${
+          <div style={!isLive && !isFinished ? { backgroundColor: `${hexToRgba(activeTheme?.primary, 0.15)}`, borderColor: `${hexToRgba(activeTheme?.primary, 0.45)}`, color: activeTheme?.primary || "#ffd700" } : {}} className={`px-2 py-0.5 rounded-full text-[11px] font-bold font-orbitron flex items-center gap-1 ${
             isLive 
               ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse' 
               : isFinished 

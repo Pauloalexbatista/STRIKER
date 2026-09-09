@@ -138,10 +138,50 @@ function StrikerApp() {
   );
 }
 
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("STRIKER Crash:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#06070b] text-white p-6 flex flex-col items-center justify-center text-center">
+          <div className="text-4xl mb-3">⚽</div>
+          <h2 className="text-base font-bold font-orbitron text-amber-400 mb-2">A carregar o STRIKER...</h2>
+          <p className="text-xs text-slate-400 mb-4 font-mono max-w-xs">{this.state.error?.message || 'A reiniciar interface'}</p>
+          <button
+            onClick={() => {
+              localStorage.clear();
+              window.location.reload();
+            }}
+            className="px-5 py-2.5 bg-amber-400 text-black font-bold text-xs rounded-xl font-orbitron active:scale-95 shadow-lg cursor-pointer"
+          >
+            Limpar Cache & Reiniciar
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
-    <ThemeProvider>
-      <StrikerApp />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <StrikerApp />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

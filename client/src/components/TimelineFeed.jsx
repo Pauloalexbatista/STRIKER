@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { GameCard } from './GameCard';
 import { fetchGames } from '../services/api';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme, hexToRgba } from '../contexts/ThemeContext';
 import { ChevronLeft, ChevronRight, Calendar, RotateCw, Plus, Trophy } from 'lucide-react';
 
 export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) {
@@ -35,7 +35,7 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) 
       
       {/* If user has no active league */}
       {!activeLeague && (
-        <div className="p-4 rounded-2xl text-center space-y-2.5 transition-all duration-300" style={{ backgroundColor: `color-mix(in srgb, ${activeTheme?.primary || '#ffd700'} 10%, transparent)`, borderColor: `color-mix(in srgb, ${activeTheme?.primary || '#ffd700'} 40%, transparent)`, boxShadow: `0 0 20px ${activeTheme?.glow || 'rgba(255,215,0,0.2)'}` }}>
+        <div className="p-4 rounded-2xl text-center space-y-2.5 transition-all duration-300" style={{ backgroundColor: `${hexToRgba(activeTheme?.primary, 0.12)}`, borderColor: `${hexToRgba(activeTheme?.primary, 0.45)}`, boxShadow: `0 0 20px ${activeTheme?.glow || 'rgba(255,215,0,0.2)'}` }}>
           <Trophy size={28} className="mx-auto" style={{ color: activeTheme?.primary || '#ffd700' }} />
           <h3 className="text-sm font-black font-orbitron text-white">
             Nenhum Campeonato Ativo

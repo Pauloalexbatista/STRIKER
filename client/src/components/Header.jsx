@@ -33,7 +33,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
                 <h1 className="font-orbitron text-base font-black tracking-wider text-white flex items-center">
                   STRIKER
                 </h1>
-                <span className="text-[8px] uppercase font-bold tracking-widest px-1.5 py-0.2 rounded border transition-all duration-300" style={{ backgroundColor: `color-mix(in srgb, ${activeTheme.primary} 15%, transparent)`, borderColor: `color-mix(in srgb, ${activeTheme.primary} 40%, transparent)`, color: activeTheme.primary }}>
+                <span className="text-[8px] uppercase font-bold tracking-widest px-1.5 py-0.2 rounded border transition-all duration-300" style={{ backgroundColor: `${hexToRgba(activeTheme?.primary, 0.15)}`, borderColor: `${hexToRgba(activeTheme?.primary, 0.45)}`, color: activeTheme.primary }}>
                   PRO
                 </span>
               </div>
