@@ -14,8 +14,7 @@ function StrikerApp() {
   const [activeReportGameId, setActiveReportGameId] = useState(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showLeagueModal, setShowLeagueModal] = useState(false);
-  
-  // Ligas
+
   const [leagues, setLeagues] = useState([]);
   const [activeLeague, setActiveLeague] = useState(null);
   const [createdCount, setCreatedCount] = useState(0);
@@ -31,12 +30,10 @@ function StrikerApp() {
       setCreatedCount(data.createdCount || 0);
       setMaxAllowed(data.maxAllowed || 3);
 
-      // Se ainda não temos liga ativa selecionada
       if (userLeagues.length > 0) {
         if (!activeLeague || !userLeagues.some(l => l.id === activeLeague.id)) {
           setActiveLeague(userLeagues[0]);
         } else {
-          // Atualizar dados da liga ativa (ex: saldo)
           const updated = userLeagues.find(l => l.id === activeLeague.id);
           if (updated) setActiveLeague(updated);
         }
@@ -51,8 +48,6 @@ function StrikerApp() {
   useEffect(() => {
     if (currentUser) {
       loadLeagues();
-
-      // Verificar se o utilizador abriu através de link de convite ?liga=CODIGO
       const urlParams = new URLSearchParams(window.location.search);
       const inviteCode = urlParams.get('liga');
       if (inviteCode) {
@@ -63,15 +58,12 @@ function StrikerApp() {
 
   return (
     <div className="min-h-screen bg-[#06070b] text-slate-100 flex flex-col portal-grid select-none">
-      
-      {/* Top Header com Seletor de Liga */}
-      <Header 
+      <Header
         onOpenLeaderboard={() => setShowLeaderboard(true)}
         activeLeague={activeLeague}
         onOpenLeagueModal={() => setShowLeagueModal(true)}
       />
 
-      {/* Breadcrumb Info */}
       <div className="max-w-md mx-auto w-full px-3 pt-2.5 flex items-center justify-between text-[11px] text-slate-400">
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full animate-pulse transition-colors duration-500" style={{ backgroundColor: activeTheme?.primary || '#00d166', boxShadow: `0 0 10px ${activeTheme?.primary || '#00d166'}` }} />
@@ -83,9 +75,8 @@ function StrikerApp() {
         </div>
       </div>
 
-      {/* Main Feed with all Games */}
       <main className="flex-1 pb-8">
-        <TimelineFeed 
+        <TimelineFeed
           key={feedKey}
           activeLeague={activeLeague}
           onOpenReport={(gameId) => setActiveReportGameId(gameId)}
@@ -93,7 +84,6 @@ function StrikerApp() {
         />
       </main>
 
-      {/* 3-Column Report Drawer da Liga */}
       {activeReportGameId && (
         <ThreeColumnDrawer
           gameId={activeReportGameId}
@@ -102,14 +92,12 @@ function StrikerApp() {
         />
       )}
 
-      {/* Rankings Modal da Liga Ativa */}
       <LeaderboardModal
         isOpen={showLeaderboard}
         activeLeague={activeLeague}
         onClose={() => setShowLeaderboard(false)}
       />
 
-      {/* Gestor de Ligas & Convites */}
       <LeagueModal
         isOpen={showLeagueModal}
         onClose={() => setShowLeagueModal(false)}
@@ -125,7 +113,6 @@ function StrikerApp() {
         onRefreshLeagues={loadLeagues}
       />
 
-      {/* Login / Register Modal para novos jogadores */}
       <LoginModal
         isOpen={!currentUser}
         onLoginSuccess={(user) => {
@@ -133,7 +120,6 @@ function StrikerApp() {
           setFeedKey(k => k + 1);
         }}
       />
-
     </div>
   );
 }
@@ -150,25 +136,23 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("STRIKER Crash:", error, errorInfo);
+    console.error('STRIKER Crash:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-[#06070b] text-white p-6 flex flex-col items-center justify-center text-center">
-          <div className="text-4xl mb-3">?</div>
+          <div className="text-4xl mb-3">âš½</div>
           <h2 className="text-base font-bold font-orbitron text-amber-400 mb-2">A carregar o STRIKER...</h2>
           <p className="text-xs text-slate-400 mb-4 font-mono max-w-xs">{this.state.error?.message || 'A reiniciar interface'}</p>
           <button
             onClick={async () => {
               localStorage.clear();
-              // Eliminar Service Worker para forcar busca do bundle novo
               if ('serviceWorker' in navigator) {
                 const regs = await navigator.serviceWorker.getRegistrations();
                 for (const reg of regs) { await reg.unregister(); }
               }
-              // Apagar caches do browser
               if ('caches' in window) {
                 const keys = await caches.keys();
                 await Promise.all(keys.map(k => caches.delete(k)));
@@ -177,7 +161,7 @@ class ErrorBoundary extends React.Component {
             }}
             className="px-5 py-2.5 bg-amber-400 text-black font-bold text-xs rounded-xl font-orbitron active:scale-95 shadow-lg cursor-pointer"
           >
-            Limpar Cache & Reiniciar
+            Limpar Cache &amp; Reiniciar
           </button>
         </div>
       );
