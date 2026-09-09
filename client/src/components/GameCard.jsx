@@ -87,12 +87,12 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
 
         <div className="flex items-center gap-2">
           {/* Countdown or Status Badge */}
-          <div className={`px-2 py-0.5 rounded-full text-[11px] font-bold font-orbitron flex items-center gap-1 ${
+          <div style={!isLive && !isFinished ? { backgroundColor: `color-mix(in srgb, ${activeTheme?.primary || "#ffd700"} 15%, transparent)`, borderColor: `color-mix(in srgb, ${activeTheme?.primary || "#ffd700"} 40%, transparent)`, color: activeTheme?.primary || "#ffd700" } : {}} className={`px-2 py-0.5 rounded-full text-[11px] font-bold font-orbitron flex items-center gap-1 ${
             isLive 
               ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse' 
               : isFinished 
               ? 'bg-slate-800 text-slate-400 border border-slate-700' 
-              : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+              : 'text-white border'
           }`}>
             {isLive ? (
               <>
@@ -106,7 +106,7 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
               </>
             ) : (
               <>
-                <Clock size={12} className="text-amber-400" />
+                <Clock size={12} style={{ color: activeTheme?.primary || '#ffd700' }} />
                 <span>{timeLeft}</span>
               </>
             )}
@@ -231,7 +231,7 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
             </span>
           )}
           <div className="text-slate-400">
-            Pote: <span className="font-bold text-amber-400 font-orbitron">{totalBets}.00 pts</span> <span className="text-slate-500">({totalBets} {totalBets === 1 ? 'aposta' : 'apostas'})</span>
+            Pote: <span className="font-bold font-orbitron" style={{ color: activeTheme?.primary || "#ffd700" }}>{totalBets}.00 pts</span> <span className="text-slate-500">({totalBets} {totalBets === 1 ? 'aposta' : 'apostas'})</span>
           </div>
         </div>
       </div>

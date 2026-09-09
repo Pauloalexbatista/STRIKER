@@ -10,7 +10,7 @@ import { fetchMyLeagues } from './services/api';
 import { Smartphone } from 'lucide-react';
 
 function StrikerApp() {
-  const { currentUser, login } = useTheme();
+  const { currentUser, login, activeTheme } = useTheme();
   const [activeReportGameId, setActiveReportGameId] = useState(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showLeagueModal, setShowLeagueModal] = useState(false);
@@ -74,7 +74,7 @@ function StrikerApp() {
       {/* Breadcrumb Info */}
       <div className="max-w-md mx-auto w-full px-3 pt-2.5 flex items-center justify-between text-[11px] text-slate-400">
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse" />
+          <span className="w-2 h-2 rounded-full animate-pulse transition-colors duration-500" style={{ backgroundColor: activeTheme?.primary || '#00d166', boxShadow: `0 0 10px ${activeTheme?.primary || '#00d166'}` }} />
           <span className="font-semibold text-slate-300">striker.testeweb.site</span>
         </div>
         <div className="flex items-center gap-1 text-slate-400">

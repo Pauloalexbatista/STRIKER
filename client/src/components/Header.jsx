@@ -33,7 +33,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
                 <h1 className="font-orbitron text-base font-black tracking-wider text-white flex items-center">
                   STRIKER
                 </h1>
-                <span className="text-[8px] uppercase font-bold tracking-widest px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                <span className="text-[8px] uppercase font-bold tracking-widest px-1.5 py-0.2 rounded border transition-all duration-300" style={{ backgroundColor: `color-mix(in srgb, ${activeTheme.primary} 15%, transparent)`, borderColor: `color-mix(in srgb, ${activeTheme.primary} 40%, transparent)`, color: activeTheme.primary }}>
                   PRO
                 </span>
               </div>
@@ -63,7 +63,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
             <button
               type="button"
               onClick={onOpenLeaderboard}
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-amber-400 active:scale-90 transition-all cursor-pointer"
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 active:scale-90 transition-all cursor-pointer" style={{ color: activeTheme.primary }}
               title="Classificações & Ranking"
             >
               <Trophy size={16} />
@@ -92,7 +92,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
               <span className="text-xs">🏆</span>
               <div className="text-left truncate">
                 <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block -mb-0.5">Campeonato Ativo</span>
-                <span className="text-xs font-bold text-amber-300 truncate font-orbitron group-hover:text-amber-200">
+                <span className="text-xs font-bold truncate font-orbitron transition-colors duration-300" style={{ color: activeTheme.primary }}>
                   {activeLeague ? activeLeague.name : 'Escolher Campeonato'}
                 </span>
               </div>
@@ -139,7 +139,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h3 className="text-sm font-bold text-white flex items-center gap-2 font-orbitron">
-                <Shield size={16} className="text-amber-400" />
+                <Shield size={16} style={{ color: activeTheme.primary }} />
                 Cores do Teu Clube
               </h3>
               <button 

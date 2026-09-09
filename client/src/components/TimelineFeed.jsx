@@ -5,7 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { ChevronLeft, ChevronRight, Calendar, RotateCw, Plus, Trophy } from 'lucide-react';
 
 export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) {
-  const { currentUser } = useTheme();
+  const { currentUser, activeTheme } = useTheme();
   const [round, setRound] = useState(6); // Matchday 3 (actual real matchday from API)
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,8 +35,8 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) 
       
       {/* If user has no active league */}
       {!activeLeague && (
-        <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-400/50 text-center space-y-2.5 shadow-[0_0_15px_rgba(251,191,36,0.15)]">
-          <Trophy size={28} className="text-amber-400 mx-auto" />
+        <div className="p-4 rounded-2xl text-center space-y-2.5 transition-all duration-300" style={{ backgroundColor: `color-mix(in srgb, ${activeTheme?.primary || '#ffd700'} 10%, transparent)`, borderColor: `color-mix(in srgb, ${activeTheme?.primary || '#ffd700'} 40%, transparent)`, boxShadow: `0 0 20px ${activeTheme?.glow || 'rgba(255,215,0,0.2)'}` }}>
+          <Trophy size={28} className="mx-auto" style={{ color: activeTheme?.primary || '#ffd700' }} />
           <h3 className="text-sm font-black font-orbitron text-white">
             Nenhum Campeonato Ativo
           </h3>
@@ -46,7 +46,7 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) 
           <button
             type="button"
             onClick={onOpenLeagueModal}
-            className="py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-black text-xs font-bold font-orbitron uppercase tracking-wider inline-flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+            className="py-2.5 px-4 rounded-xl text-black text-xs font-bold font-orbitron uppercase tracking-wider inline-flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer transition-all" style={{ backgroundColor: activeTheme?.primary || '#ffd700', boxShadow: `0 0 15px ${activeTheme?.glow || 'rgba(255,215,0,0.3)'}` }}
           >
             <Plus size={14} /> Criar ou Entrar numa Liga
           </button>
@@ -68,8 +68,8 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) 
             Liga Portugal
           </div>
           <div className="text-sm font-black font-orbitron text-white flex items-center gap-1.5 justify-center">
-            <Calendar size={14} className="text-amber-400" />
-            Jornada {round} de 34
+            <Calendar size={14} style={{ color: activeTheme?.primary || '#ffd700' }} />
+            Jornada <span style={{ color: activeTheme?.primary || '#ffd700' }}>{round}</span> de 34
           </div>
         </div>
 
@@ -79,7 +79,7 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) 
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white active:scale-90 transition-all cursor-pointer"
             title="Atualizar Jogos"
           >
-            <RotateCw size={16} className={loading ? 'animate-spin text-amber-400' : ''} />
+            <RotateCw size={16} className={loading ? 'animate-spin' : ''} style={{ color: loading ? (activeTheme?.primary || '#ffd700') : undefined }} />
           </button>
           
           <button
@@ -95,7 +95,7 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) 
       {/* Timeline Feed of Game Cards */}
       {loading ? (
         <div className="py-16 text-center space-y-2">
-          <div className="w-8 h-8 rounded-full border-2 border-amber-400 border-t-transparent animate-spin mx-auto" />
+          <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mx-auto" style={{ borderColor: activeTheme?.primary || '#ffd700', borderTopColor: 'transparent' }} />
           <p className="text-xs text-slate-400">A carregar jogos da jornada...</p>
         </div>
       ) : games.length === 0 ? (
