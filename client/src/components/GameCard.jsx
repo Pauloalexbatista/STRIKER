@@ -222,17 +222,18 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
           )}
         </div>
 
-        {/* Informação do Pote / Segredo */}
-        {!isLive && !isFinished ? (
-          <div className="text-slate-500 text-[10px] flex items-center gap-1 font-medium shrink-0">
-            <Lock size={11} className="text-slate-500" />
-            <span>Apostas secretas até ao início</span>
+        {/* Informação do Pote & Segredo */}
+        <div className="flex items-center gap-2 text-[10px] font-mono shrink-0">
+          {!isLive && !isFinished && (
+            <span className="text-slate-500 flex items-center gap-0.5 text-[9px] font-sans" title="Ninguém vê os palpites individuais até ao apito inicial">
+              <Lock size={10} className="text-slate-500" />
+              <span>Secretas</span>
+            </span>
+          )}
+          <div className="text-slate-400">
+            Pote: <span className="font-bold text-amber-400 font-orbitron">{totalBets}.00 pts</span> <span className="text-slate-500">({totalBets} {totalBets === 1 ? 'aposta' : 'apostas'})</span>
           </div>
-        ) : (
-          <div className="text-slate-400 font-mono text-[10px] shrink-0">
-            Pote: <span className="font-bold text-amber-400 font-orbitron">{totalBets}.00 pts</span> ({totalBets} {totalBets === 1 ? 'aposta' : 'apostas'})
-          </div>
-        )}
+        </div>
       </div>
 
     </div>
