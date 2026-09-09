@@ -1,4 +1,4 @@
-﻿import { db, initDb } from './database.js';
+import { db, initDb } from './database.js';
 
 export function seedData() {
   initDb();
@@ -37,17 +37,31 @@ export function seedData() {
     }
   }
 
-  // 2. Initial Admin/Host User (Paulo) with 0.00 balance
+  // 2. Initial Admin/Host User (Paulo) and Default Striker League
   const usersCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
   if (usersCount === 0) {
     const now = new Date().toISOString();
     db.prepare(`
-      INSERT INTO users (id, name, pin, favorite_club, balance, avatar, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run('u_paulo', 'Paulo', '1234', 'SCP', 0.00, '🦁', now);
+      INSERT INTO users (id, name, pin, favorite_club, avatar, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run('u_paulo', 'Paulo', '1234', 'SCP', '🦁', now);
+
+    // Initial League
+    const leaguesCount = db.prepare('SELECT COUNT(*) as count FROM leagues').get().count;
+    if (leaguesCount === 0) {
+      db.prepare(`
+        INSERT INTO leagues (id, name, code, creator_id, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run('l_striker', 'Striker Principal', 'STRIKER', 'u_paulo', now);
+
+      db.prepare(`
+        INSERT INTO league_members (league_id, user_id, balance, joined_at)
+        VALUES (?, ?, 0.00, ?)
+      `).run('l_striker', 'u_paulo', now);
+    }
   }
 
-  // 3. Seed the 9 Real Games of the Current Jornada (All UPCOMING with real matchups)
+  // 3. Seed the 9 Real Games of the Current Jornada
   const gamesCount = db.prepare('SELECT COUNT(*) as count FROM games').get().count;
   if (gamesCount === 0) {
     const baseTime = Date.now() + 24 * 60 * 60 * 1000; // Começa amanhã à tarde
@@ -64,8 +78,8 @@ export function seedData() {
     ];
 
     const insertGame = db.prepare(`
-      INSERT INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result, pool_points)
-      VALUES (?, ?, ?, ?, ?, 'UPCOMING', null, null, null, 0.00)
+      INSERT INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
+      VALUES (?, ?, ?, ?, ?, 'UPCOMING', null, null, null)
     `);
 
     for (const g of gamesList) {

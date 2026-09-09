@@ -102,8 +102,8 @@ export const FootballApiService = {
         if (!existing) {
           // Criar novo jogo
           db.prepare(`
-            INSERT INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result, pool_points)
-            VALUES (?, ?, ?, ?, ?, 'UPCOMING', null, null, null, 0.00)
+            INSERT INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
+            VALUES (?, ?, ?, ?, ?, 'UPCOMING', null, null, null)
           `).run(gameId, round, homeId, awayId, kickoff);
           updatedCount++;
         }
