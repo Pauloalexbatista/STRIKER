@@ -1,5 +1,5 @@
 ﻿import React, { createContext, useContext, useState, useEffect } from 'react';
-import { fetchUsers, updateUserClub } from '../services/api';
+import { updateUserClub, fetchUsers } from '../services/api';
 
 const ThemeContext = createContext();
 
@@ -10,7 +10,7 @@ export const CLUB_THEMES = {
     primary: '#00D166',
     border: 'border-emerald-500',
     bgLight: 'bg-emerald-500/10',
-    glow: 'rgba(0, 209, 102, 0.45)',
+    glow: 'rgba(0, 209, 102, 0.5)',
     textColor: 'text-emerald-400',
     badge: '🦁'
   },
@@ -20,7 +20,7 @@ export const CLUB_THEMES = {
     primary: '#FF2E4D',
     border: 'border-rose-500',
     bgLight: 'bg-rose-500/10',
-    glow: 'rgba(255, 46, 77, 0.45)',
+    glow: 'rgba(255, 46, 77, 0.5)',
     textColor: 'text-rose-400',
     badge: '🦅'
   },
@@ -30,7 +30,7 @@ export const CLUB_THEMES = {
     primary: '#007AFF',
     border: 'border-blue-500',
     bgLight: 'bg-blue-500/10',
-    glow: 'rgba(0, 122, 255, 0.45)',
+    glow: 'rgba(0, 122, 255, 0.5)',
     textColor: 'text-blue-400',
     badge: '🐉'
   },
@@ -40,37 +40,23 @@ export const CLUB_THEMES = {
     primary: '#FFD700',
     border: 'border-amber-400',
     bgLight: 'bg-amber-400/10',
-    glow: 'rgba(255, 215, 0, 0.45)',
+    glow: 'rgba(255, 215, 0, 0.5)',
     textColor: 'text-amber-400',
     badge: '⚡'
   }
 };
 
 export function ThemeProvider({ children }) {
-  const [users, setUsers] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [activeTheme, setActiveTheme] = useState(CLUB_THEMES.SCP);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('striker_user');
+    return saved ? JSON.parse(saved) : null;
+  });
 
-  const refreshUsers = async () => {
-    try {
-      const data = await fetchUsers();
-      setUsers(data);
-      if (!currentUser && data.length > 0) {
-        // Default to Paulo (u1)
-        const defaultUser = data.find(u => u.id === 'u1') || data[0];
-        setCurrentUser(defaultUser);
-        applyTheme(defaultUser.favorite_club);
-      } else if (currentUser) {
-        const updated = data.find(u => u.id === currentUser.id);
-        if (updated) {
-          setCurrentUser(updated);
-          applyTheme(updated.favorite_club);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching users:', err);
-    }
-  };
+  const [activeTheme, setActiveTheme] = useState(() => {
+    const saved = localStorage.getItem('striker_user');
+    const club = saved ? JSON.parse(saved).favorite_club : 'SCP';
+    return CLUB_THEMES[club] || CLUB_THEMES.SCP;
+  });
 
   const applyTheme = (clubId) => {
     const theme = CLUB_THEMES[clubId] || CLUB_THEMES.SCP;
@@ -79,12 +65,16 @@ export function ThemeProvider({ children }) {
     document.documentElement.style.setProperty('--club-glow', theme.glow);
   };
 
-  const switchUser = (userId) => {
-    const user = users.find(u => u.id === userId);
-    if (user) {
-      setCurrentUser(user);
-      applyTheme(user.favorite_club);
-    }
+  const login = (user) => {
+    setCurrentUser(user);
+    localStorage.setItem('striker_user', JSON.stringify(user));
+    applyTheme(user.favorite_club);
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('striker_user');
+    applyTheme('SCP');
   };
 
   const changeFavoriteClub = async (clubId) => {
@@ -92,25 +82,42 @@ export function ThemeProvider({ children }) {
     try {
       const updated = await updateUserClub(currentUser.id, clubId);
       setCurrentUser(updated);
+      localStorage.setItem('striker_user', JSON.stringify(updated));
       applyTheme(clubId);
-      refreshUsers();
     } catch (err) {
       console.error('Error changing club:', err);
     }
   };
 
+  const refreshCurrentUser = async () => {
+    if (!currentUser) return;
+    try {
+      const users = await fetchUsers();
+      const me = users.find(u => u.id === currentUser.id);
+      if (me) {
+        setCurrentUser(me);
+        localStorage.setItem('striker_user', JSON.stringify(me));
+        applyTheme(me.favorite_club);
+      }
+    } catch (err) {
+      console.error('Error refreshing user:', err);
+    }
+  };
+
   useEffect(() => {
-    refreshUsers();
+    if (currentUser?.favorite_club) {
+      applyTheme(currentUser.favorite_club);
+    }
   }, []);
 
   return (
     <ThemeContext.Provider value={{
-      users,
       currentUser,
       activeTheme,
-      switchUser,
+      login,
+      logout,
       changeFavoriteClub,
-      refreshUsers
+      refreshCurrentUser
     }}>
       {children}
     </ThemeContext.Provider>

@@ -11,6 +11,7 @@ export function initDb() {
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       name TEXT UNIQUE NOT NULL,
+      pin TEXT NOT NULL DEFAULT '1234',
       favorite_club TEXT NOT NULL DEFAULT 'SCP',
       avatar TEXT,
       balance REAL NOT NULL DEFAULT 0.00,

@@ -1,5 +1,18 @@
 ﻿const BASE_URL = '/api';
 
+export async function loginUser(name, pin, favoriteClub) {
+  const res = await fetch(`${BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, pin, favoriteClub })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Erro ao entrar');
+  }
+  return res.json();
+}
+
 export async function fetchClubs() {
   const res = await fetch(`${BASE_URL}/clubs`);
   return res.json();
@@ -19,7 +32,7 @@ export async function updateUserClub(userId, clubId) {
   return res.json();
 }
 
-export async function fetchGames(round = 25, userId = 'u1') {
+export async function fetchGames(round = 25, userId = '') {
   const res = await fetch(`${BASE_URL}/games?round=${round}&userId=${userId}`);
   return res.json();
 }
@@ -45,24 +58,5 @@ export async function fetchRoundLeaderboard(round = 25) {
 
 export async function fetchGeneralLeaderboard() {
   const res = await fetch(`${BASE_URL}/leaderboard/general`);
-  return res.json();
-}
-
-export async function simLockGame(gameId) {
-  const res = await fetch(`${BASE_URL}/admin/games/${gameId}/lock`, { method: 'POST' });
-  return res.json();
-}
-
-export async function simSettleGame(gameId, homeScore, awayScore) {
-  const res = await fetch(`${BASE_URL}/admin/games/${gameId}/settle`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ homeScore, awayScore })
-  });
-  return res.json();
-}
-
-export async function simResetGame(gameId) {
-  const res = await fetch(`${BASE_URL}/admin/games/${gameId}/reset`, { method: 'POST' });
   return res.json();
 }
