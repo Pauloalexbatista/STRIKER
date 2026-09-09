@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { useTheme, CLUB_THEMES } from '../contexts/ThemeContext';
+import { useTheme, CLUB_THEMES, hexToRgba } from '../contexts/ThemeContext';
 import { Trophy, Shield, LogOut, Check, ChevronDown, Plus } from 'lucide-react';
 
 export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
