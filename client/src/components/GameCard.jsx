@@ -75,7 +75,7 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
             J{game.round}
           </span>
           <span className="text-[11px] text-slate-400 font-medium">
-            {new Date(game.kickoff_time).toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            {new Date(game.kickoff_time).toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
 

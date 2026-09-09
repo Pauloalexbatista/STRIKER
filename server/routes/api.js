@@ -133,7 +133,7 @@ router.get('/leagues/my', (req, res) => {
 
 // 5. Obter jogos da jornada (adaptados à liga ativa)
 router.get('/games', (req, res) => {
-  const round = req.query.round ? parseInt(req.query.round) : 3;
+  const round = req.query.round ? parseInt(req.query.round) : 6;
   const userId = req.query.userId || '';
   const leagueId = req.query.leagueId || '';
 

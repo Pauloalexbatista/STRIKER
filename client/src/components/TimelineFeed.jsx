@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Calendar, RotateCw, Plus, Trophy } from 'luc
 
 export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) {
   const { currentUser } = useTheme();
-  const [round, setRound] = useState(3); // Matchday 3 (actual real matchday from API)
+  const [round, setRound] = useState(6); // Matchday 3 (actual real matchday from API)
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
 

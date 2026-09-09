@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { updateUserClub, fetchUsers } from '../services/api';
 
 const ThemeContext = createContext();
@@ -54,15 +54,19 @@ export function ThemeProvider({ children }) {
 
   const [activeTheme, setActiveTheme] = useState(() => {
     const saved = localStorage.getItem('striker_user');
-    const club = saved ? JSON.parse(saved).favorite_club : 'SCP';
+    const guestClub = localStorage.getItem('striker_guest_club');
+    const club = saved ? JSON.parse(saved).favorite_club : (guestClub || 'SCP');
     return CLUB_THEMES[club] || CLUB_THEMES.SCP;
   });
 
   const applyTheme = (clubId) => {
     const theme = CLUB_THEMES[clubId] || CLUB_THEMES.SCP;
     setActiveTheme(theme);
-    document.documentElement.style.setProperty('--club-primary', theme.primary);
-    document.documentElement.style.setProperty('--club-glow', theme.glow);
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--club-primary', theme.primary);
+      document.documentElement.style.setProperty('--club-glow', theme.glow);
+      document.documentElement.setAttribute('data-theme', clubId.toLowerCase());
+    }
   };
 
   const login = (user) => {
@@ -74,18 +78,22 @@ export function ThemeProvider({ children }) {
   const logout = () => {
     setCurrentUser(null);
     localStorage.removeItem('striker_user');
-    applyTheme('SCP');
+    const guestClub = localStorage.getItem('striker_guest_club') || 'SCP';
+    applyTheme(guestClub);
   };
 
   const changeFavoriteClub = async (clubId) => {
-    if (!currentUser) return;
-    try {
-      const updated = await updateUserClub(currentUser.id, clubId);
-      setCurrentUser(updated);
-      localStorage.setItem('striker_user', JSON.stringify(updated));
-      applyTheme(clubId);
-    } catch (err) {
-      console.error('Error changing club:', err);
+    applyTheme(clubId);
+    localStorage.setItem('striker_guest_club', clubId);
+    
+    if (currentUser) {
+      try {
+        const updated = await updateUserClub(currentUser.id, clubId);
+        setCurrentUser(updated);
+        localStorage.setItem('striker_user', JSON.stringify(updated));
+      } catch (err) {
+        console.error('Error changing club on server:', err);
+      }
     }
   };
 
@@ -105,9 +113,8 @@ export function ThemeProvider({ children }) {
   };
 
   useEffect(() => {
-    if (currentUser?.favorite_club) {
-      applyTheme(currentUser.favorite_club);
-    }
+    const club = currentUser?.favorite_club || localStorage.getItem('striker_guest_club') || 'SCP';
+    applyTheme(club);
   }, []);
 
   return (
