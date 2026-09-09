@@ -1,5 +1,5 @@
 ﻿# STRIKER - Dockerfile optimizado para Coolify / VPS
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ COPY client/ ./client/
 RUN npm --prefix client run build
 
 # Stage de Produção
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
@@ -33,4 +33,4 @@ EXPOSE 3001
 
 VOLUME ["/app/server/db"]
 
-CMD ["node", "server/server.js"]
+CMD ["node", "--experimental-sqlite", "server/server.js"]
