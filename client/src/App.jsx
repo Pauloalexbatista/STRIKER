@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { Header } from './components/Header';
 import { TimelineFeed } from './components/TimelineFeed';
@@ -31,7 +31,7 @@ function StrikerApp() {
       setCreatedCount(data.createdCount || 0);
       setMaxAllowed(data.maxAllowed || 3);
 
-      // Se ainda não temos liga ativa selecionada
+      // Se ainda n�o temos liga ativa selecionada
       if (userLeagues.length > 0) {
         if (!activeLeague || !userLeagues.some(l => l.id === activeLeague.id)) {
           setActiveLeague(userLeagues[0]);
@@ -52,7 +52,7 @@ function StrikerApp() {
     if (currentUser) {
       loadLeagues();
 
-      // Verificar se o utilizador abriu através de link de convite ?liga=CODIGO
+      // Verificar se o utilizador abriu atrav�s de link de convite ?liga=CODIGO
       const urlParams = new URLSearchParams(window.location.search);
       const inviteCode = urlParams.get('liga');
       if (inviteCode) {
@@ -157,13 +157,23 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-[#06070b] text-white p-6 flex flex-col items-center justify-center text-center">
-          <div className="text-4xl mb-3">⚽</div>
+          <div className="text-4xl mb-3">?</div>
           <h2 className="text-base font-bold font-orbitron text-amber-400 mb-2">A carregar o STRIKER...</h2>
           <p className="text-xs text-slate-400 mb-4 font-mono max-w-xs">{this.state.error?.message || 'A reiniciar interface'}</p>
           <button
-            onClick={() => {
+            onClick={async () => {
               localStorage.clear();
-              window.location.reload();
+              // Eliminar Service Worker para forcar busca do bundle novo
+              if ('serviceWorker' in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (const reg of regs) { await reg.unregister(); }
+              }
+              // Apagar caches do browser
+              if ('caches' in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+              }
+              window.location.reload(true);
             }}
             className="px-5 py-2.5 bg-amber-400 text-black font-bold text-xs rounded-xl font-orbitron active:scale-95 shadow-lg cursor-pointer"
           >
