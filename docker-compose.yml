@@ -1,0 +1,19 @@
+﻿version: '3.8'
+
+services:
+  striker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: striker-app
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    volumes:
+      - striker-data:/app/server/db
+
+volumes:
+  striker-data:

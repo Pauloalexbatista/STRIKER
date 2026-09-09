@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { fetchGameReport } from '../services/api';
-import { X, Lock, Eye, CheckCircle2, TrendingUp, AlertCircle, Award } from 'lucide-react';
+import { X, Lock, Eye, CheckCircle2, TrendingUp, Award, HelpCircle } from 'lucide-react';
 
 export function ThreeColumnDrawer({ gameId, onClose }) {
   const [data, setData] = useState(null);
@@ -37,7 +37,7 @@ export function ThreeColumnDrawer({ gameId, onClose }) {
         <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+              <span className="text-xs uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
                 Jornada {data?.game?.round || 25}
               </span>
               {data?.game?.status === 'UPCOMING' && (
@@ -70,17 +70,22 @@ export function ThreeColumnDrawer({ gameId, onClose }) {
           </button>
         </div>
 
-        {/* Total Pool & Economy Banner */}
-        <div className="bg-slate-900/80 px-4 py-2.5 border-b border-slate-800/60 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <TrendingUp size={16} className="text-amber-400" />
-            <span className="text-xs text-slate-300 font-medium">Pote Total do Grupo:</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">({data?.totalBets || 0} apostadores)</span>
-            <span className="text-sm font-bold font-orbitron text-amber-400">
+        {/* Total Pool & Formula Information Banner */}
+        <div className="bg-slate-900/90 px-4 py-2.5 border-b border-slate-800/70 flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={16} className="text-amber-400" />
+              <span className="text-xs text-slate-300 font-medium">Pote do Jogo:</span>
+              <span className="text-xs text-slate-400 font-mono">({data?.totalBets || 0} apostas = {Number(data?.poolPoints || 0).toFixed(2)} pts)</span>
+            </div>
+            <div className="text-sm font-bold font-orbitron text-amber-400">
               {Number(data?.poolPoints || 0).toFixed(2)} pts
-            </span>
+            </div>
+          </div>
+          
+          <div className="text-[10px] text-slate-400 flex items-center gap-1">
+            <span className="text-amber-400 font-semibold">Regra da Divisão:</span>
+            <span>Prémio Bruto = Pote ÷ Vencedores • Lucro Líquido = Prémio - 1.00 pt de entrada</span>
           </div>
         </div>
 
@@ -138,21 +143,21 @@ export function ThreeColumnDrawer({ gameId, onClose }) {
                 <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5">
                   <Lock size={16} className="text-amber-400 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-200/90 leading-relaxed">
-                    <strong className="text-amber-300">Apostas Secretas:</strong> Antes do apito inicial, podes ver a quantidade de apostas em cada coluna, mas os nomes dos apostadores permanecem ocultos para garantir jogo limpo.
+                    <strong className="text-amber-300">Apostas Secretas:</strong> Podes ver quantas pessoas apostaram em cada coluna ({data.columns.home.count} | {data.columns.draw.count} | {data.columns.away.count}), mas os nomes só aparecem no apito inicial (00:00).
                   </p>
                 </div>
               ) : data.game.status === 'LIVE' ? (
                 <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5">
                   <Eye size={16} className="text-rose-400 shrink-0 mt-0.5" />
                   <p className="text-xs text-rose-200/90 leading-relaxed">
-                    <strong className="text-rose-300">Jogo a Decorrer:</strong> Todos os palpites foram revelados. A taxa de entrada de <span className="font-mono text-rose-300 font-bold">-1.00 pt</span> foi registada. No apito final, os vencedores dividem o pote!
+                    <strong className="text-rose-300">Jogo a Decorrer:</strong> Palpites revelados. A taxa de <span className="font-mono text-rose-300 font-bold">-1.00 pt</span> foi deduzida a cada participante. No apito final, quem acertou divide o pote total de {Number(data.poolPoints).toFixed(2)} pts!
                   </p>
                 </div>
               ) : (
                 <div className="mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5">
                   <Award size={16} className="text-emerald-400 shrink-0 mt-0.5" />
                   <p className="text-xs text-emerald-200/90 leading-relaxed">
-                    <strong className="text-emerald-300">Resultado Oficial Registado:</strong> A coluna vencedora está assinalada. Os pontos líquidos já foram creditados na conta dos vencedores.
+                    <strong className="text-emerald-300">Resultado Oficial Registado:</strong> A coluna vencedora está assinalada. Os vencedores receberam o prémio bruto e o lucro líquido (+X.XX) foi adicionado ao saldo de cada um.
                   </p>
                 </div>
               )}
@@ -202,42 +207,53 @@ function ColumnBlock({ title, subTitle, badgeColor, bets, count, isLocked, isWin
             Sem apostas
           </div>
         ) : (
-          bets.map((b) => (
-            <div 
-              key={b.id}
-              className={`p-1.5 rounded-lg border text-left flex items-center justify-between text-[11px] ${
-                b.net_points > 0 
-                  ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200' 
-                  : 'bg-slate-800/60 border-slate-700/50 text-slate-300'
-              }`}
-            >
-              <div className="flex items-center gap-1 min-w-0">
-                <span className="text-xs shrink-0">{b.user_avatar || '⚽'}</span>
-                <span className="truncate font-medium text-[10px] text-slate-200" title={b.user_name}>
-                  {b.user_name.split(' ')[0]}
-                </span>
-              </div>
+          bets.map((b) => {
+            const hasWon = Number(b.net_points) > 0;
+            const grossPoints = Number(b.points_won || 0).toFixed(2);
+            const netPoints = Number(b.net_points || 0).toFixed(2);
 
-              {/* Points tag */}
-              <div className="shrink-0 text-right">
-                {status === 'FINISHED' ? (
-                  b.net_points > 0 ? (
-                    <span className="font-bold text-emerald-400 font-orbitron text-[10px]">
-                      +{Number(b.net_points).toFixed(2)}
-                    </span>
+            return (
+              <div 
+                key={b.id}
+                className={`p-1.5 rounded-lg border text-left flex items-center justify-between text-[11px] ${
+                  hasWon 
+                    ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200' 
+                    : 'bg-slate-800/60 border-slate-700/50 text-slate-300'
+                }`}
+              >
+                <div className="flex items-center gap-1 min-w-0">
+                  <span className="text-xs shrink-0">{b.user_avatar || '⚽'}</span>
+                  <span className="truncate font-medium text-[10px] text-slate-200" title={b.user_name}>
+                    {b.user_name.split(' ')[0]}
+                  </span>
+                </div>
+
+                {/* Points tag with both Gross and Net clarity */}
+                <div className="shrink-0 text-right">
+                  {status === 'FINISHED' ? (
+                    hasWon ? (
+                      <div className="leading-tight">
+                        <span className="font-bold text-emerald-400 font-orbitron text-[10px] block">
+                          +{netPoints}
+                        </span>
+                        <span className="text-[8px] text-slate-400 font-mono">
+                          bruto {grossPoints}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="font-semibold text-rose-400 font-orbitron text-[10px]">
+                        -1.00
+                      </span>
+                    )
                   ) : (
-                    <span className="font-semibold text-rose-400 font-orbitron text-[10px]">
+                    <span className="text-rose-400/80 font-mono text-[10px]">
                       -1.00
                     </span>
-                  )
-                ) : (
-                  <span className="text-rose-400/80 font-mono text-[10px]">
-                    -1.00
-                  </span>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
