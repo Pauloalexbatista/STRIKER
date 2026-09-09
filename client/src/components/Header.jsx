@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { useTheme, CLUB_THEMES, hexToRgba } from '../contexts/ThemeContext';
-import { Trophy, Shield, LogOut, Check, ChevronDown, Plus } from 'lucide-react';
+import { Trophy, Shield, LogOut, Check, ChevronDown, Plus, Share2 } from 'lucide-react';
 
 export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
   const { currentUser, activeTheme, changeFavoriteClub, logout } = useTheme();
