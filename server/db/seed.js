@@ -75,7 +75,18 @@ export function seedData() {
     // Segunda, 14/09/2026
     { id: 'g_j6_rav_cfea', round: 6, home: 'RAV', away: 'CFEA', kickoff: '2026-09-14T17:45:00Z' }, // 18:45 PT
     { id: 'g_j6_mfc_csm', round: 6, home: 'MFC', away: 'CSM', kickoff: '2026-09-14T19:15:00Z' }, // 20:15 PT
-    { id: 'g_j6_scb_est', round: 6, home: 'SCB', away: 'EST', kickoff: '2026-09-14T19:45:00Z' } // 20:45 PT
+    { id: 'g_j6_scb_est', round: 6, home: 'SCB', away: 'EST', kickoff: '2026-09-14T19:45:00Z' },
+    // Jornada 7 (Fim de semana de 19-21/09/2026)
+    { id: 'g_j7_scp_mfc', round: 7, home: 'SCP', away: 'MFC', kickoff: '2026-09-19T17:00:00Z' },
+    { id: 'g_j7_fcp_acv', round: 7, home: 'FCP', away: 'ACV', kickoff: '2026-09-19T19:30:00Z' },
+    { id: 'g_j7_alv_cpac', round: 7, home: 'ALV', away: 'CPAC', kickoff: '2026-09-20T14:30:00Z' },
+    { id: 'g_j7_cdsc_slb', round: 7, home: 'CDSC', away: 'SLB', kickoff: '2026-09-20T17:00:00Z' },
+    { id: 'g_j7_vsc_scb', round: 7, home: 'VSC', away: 'SCB', kickoff: '2026-09-20T19:30:00Z' },
+    { id: 'g_j7_gvc_fca', round: 7, home: 'GVC', away: 'FCA', kickoff: '2026-09-21T18:00:00Z' },
+    { id: 'g_j7_csm_rav', round: 7, home: 'CSM', away: 'RAV', kickoff: '2026-09-21T18:45:00Z' },
+    { id: 'g_j7_est_fcf', round: 7, home: 'EST', away: 'FCF', kickoff: '2026-09-21T20:15:00Z' },
+    { id: 'g_j7_cfea_cdn', round: 7, home: 'CFEA', away: 'CDN', kickoff: '2026-09-21T20:45:00Z' }
+
   ];
 
   const insertGame = db.prepare(`

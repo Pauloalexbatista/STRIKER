@@ -81,19 +81,19 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
           </div>
         </div>
 
-        {/* Bottom Row: Active League Selector */}
-        <div className="flex items-center justify-between pt-0.5">
+        {/* Bottom Row: Active League Selector & Direct WhatsApp Invite */}
+        <div className="flex items-center gap-2 pt-0.5">
           <button
             type="button"
             onClick={onOpenLeagueModal}
-            className="w-full py-1.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-400/50 flex items-center justify-between transition-all group active:scale-99 shadow-sm"
+            className="flex-1 py-1.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-400/50 flex items-center justify-between transition-all group active:scale-99 shadow-sm cursor-pointer"
           >
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-xs">🏆</span>
               <div className="text-left truncate">
                 <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block -mb-0.5">Campeonato Ativo</span>
                 <span className="text-xs font-bold text-amber-300 truncate font-orbitron group-hover:text-amber-200">
-                  {activeLeague ? activeLeague.name : 'Nenhum campeonato selecionado'}
+                  {activeLeague ? activeLeague.name : 'Escolher Campeonato'}
                 </span>
               </div>
             </div>
@@ -107,6 +107,22 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
               <ChevronDown size={14} className="text-slate-400 group-hover:text-white transition-colors" />
             </div>
           </button>
+
+          {activeLeague && (
+            <button
+              type="button"
+              onClick={() => {
+                const text = `⚽ Junta-te à minha Liga '${activeLeague.name}' no STRIKER!\n🔑 Código: ${activeLeague.code}\n👉 Entra aqui: https://striker.testeweb.site?liga=${activeLeague.code}`;
+                const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+                window.open(whatsappUrl, '_blank');
+              }}
+              className="py-1.5 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shrink-0 shadow-sm"
+              title="Convidar Amigos e Família via WhatsApp"
+            >
+              <Share2 size={13} />
+              <span>Convidar</span>
+            </button>
+          )}
         </div>
 
       </div>

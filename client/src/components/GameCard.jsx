@@ -1,10 +1,10 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart3, Clock, Lock, CheckCircle2 } from 'lucide-react';
 import { submitPrediction } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 
 export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated }) {
-  const { currentUser } = useTheme();
+  const { currentUser, activeTheme } = useTheme();
   const [timeLeft, setTimeLeft] = useState('');
   const [isLocked, setIsLocked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +49,7 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
 
   const handleSelectChoice = async (choice) => {
     if (isLocked || submitting || !currentUser || !activeLeague) return;
+
     try {
       setSubmitting(true);
       setUserChoice(choice);
@@ -56,6 +57,7 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
       if (onPredictionUpdated) onPredictionUpdated();
     } catch (err) {
       console.error('Error submitting prediction:', err);
+      setUserChoice(game.user_prediction);
     } finally {
       setSubmitting(false);
     }
@@ -63,11 +65,15 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
 
   const isLive = game.status === 'LIVE';
   const isFinished = game.status === 'FINISHED';
-  const totalBets = game.league_total_bets || 0;
+  const totalBets = Number(game.league_total_bets) || 0;
 
   return (
-    <div className="bg-[#0b0e17] rounded-2xl border border-slate-800/90 p-3.5 shadow-xl transition-all relative overflow-hidden">
-      
+    <div 
+      className="bg-slate-900/60 backdrop-blur-sm border border-slate-800/80 rounded-2xl p-3.5 mb-3 transition-all relative overflow-hidden shadow-lg"
+      style={{
+        borderColor: userChoice ? `${activeTheme.primary}40` : undefined
+      }}
+    >
       {/* Top Match Info & Countdown */}
       <div className="flex items-center justify-between pb-2.5 border-b border-slate-800/70">
         <div className="flex items-center gap-1.5">
@@ -106,18 +112,29 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
             )}
           </div>
 
-          {/* 3-Column Report Button */}
-          <button
-            onClick={() => onOpenReport(game.id)}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 active:scale-90 transition-all flex items-center gap-1"
-            title="Abrir Relatório da Liga"
-          >
-            <BarChart3 size={15} className="text-cyan-400" />
-          </button>
+          {/* 3-Column Report Button: APENAS DISPONÍVEL QUANDO O JOGO COMEÇA (LIVE ou FINISHED) */}
+          {(isLive || isFinished) ? (
+            <button
+              type="button"
+              onClick={() => onOpenReport(game.id)}
+              className="px-2 py-1 rounded-lg bg-cyan-950/60 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-900/80 active:scale-95 transition-all cursor-pointer flex items-center gap-1 text-[10px] font-bold font-orbitron shadow-[0_0_8px_rgba(6,182,212,0.2)]"
+              title="Ver Apostas das 3 Colunas"
+            >
+              <BarChart3 size={13} />
+              <span>Ver Palpites</span>
+            </button>
+          ) : (
+            <div 
+              className="p-1 rounded-lg bg-slate-800/40 border border-slate-800 text-slate-600 flex items-center gap-1 text-[10px]"
+              title="Apostas secretas até ao apito inicial para não influenciar ninguém"
+            >
+              <Lock size={12} />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Clubs & Score Display */}
+      {/* Match Teams Display */}
       <div className="py-3 flex items-center justify-between px-1">
         
         {/* Home Club */}
@@ -162,6 +179,7 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
           isLocked={isLocked || !activeLeague}
           isCorrect={isFinished && game.result === 'HOME'}
           isWrong={isFinished && userChoice === 'HOME' && game.result !== 'HOME'}
+          activeTheme={activeTheme}
           onClick={() => handleSelectChoice('HOME')}
         />
 
@@ -172,6 +190,7 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
           isLocked={isLocked || !activeLeague}
           isCorrect={isFinished && game.result === 'DRAW'}
           isWrong={isFinished && userChoice === 'DRAW' && game.result !== 'DRAW'}
+          activeTheme={activeTheme}
           onClick={() => handleSelectChoice('DRAW')}
         />
 
@@ -182,52 +201,67 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
           isLocked={isLocked || !activeLeague}
           isCorrect={isFinished && game.result === 'AWAY'}
           isWrong={isFinished && userChoice === 'AWAY' && game.result !== 'AWAY'}
+          activeTheme={activeTheme}
           onClick={() => handleSelectChoice('AWAY')}
         />
 
       </div>
 
-      {/* Prediction Feedback & League Pool */}
+      {/* Card Footer: Prediction summary & secret state */}
       <div className="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
-        <div className="text-slate-400 flex items-center gap-1">
+        <div className="text-slate-400 flex items-center gap-1 truncate">
           {userChoice ? (
             <>
               <span>Teu palpite:</span>
-              <span className="font-bold text-slate-200">
+              <span className="font-bold" style={{ color: activeTheme.primary }}>
                 {userChoice === 'HOME' ? game.home_short : userChoice === 'AWAY' ? game.away_short : 'EMPATE'}
               </span>
             </>
           ) : (
-            <span className="text-amber-400/80 font-medium">Sem aposta registada</span>
+            <span className="text-slate-500 italic">Sem aposta registada</span>
           )}
         </div>
 
-        {/* Pool for this league */}
-        <div className="text-slate-400 font-mono text-[10px]">
-          Pote: <span className="font-bold text-amber-400 font-orbitron">{totalBets}.00 pts</span> ({totalBets} apostas)
-        </div>
+        {/* Informação do Pote / Segredo */}
+        {!isLive && !isFinished ? (
+          <div className="text-slate-500 text-[10px] flex items-center gap-1 font-medium shrink-0">
+            <Lock size={11} className="text-slate-500" />
+            <span>Apostas secretas até ao início</span>
+          </div>
+        ) : (
+          <div className="text-slate-400 font-mono text-[10px] shrink-0">
+            Pote: <span className="font-bold text-amber-400 font-orbitron">{totalBets}.00 pts</span> ({totalBets} {totalBets === 1 ? 'aposta' : 'apostas'})
+          </div>
+        )}
       </div>
 
     </div>
   );
 }
 
-function BetButton({ label, code, isSelected, isLocked, isCorrect, isWrong, onClick }) {
+function BetButton({ label, code, isSelected, isLocked, isCorrect, isWrong, activeTheme, onClick }) {
+  const dynamicStyle = isSelected && !isCorrect && !isWrong ? {
+    borderColor: activeTheme?.primary || '#ffd700',
+    boxShadow: `0 0 14px ${activeTheme?.glow || 'rgba(255,215,0,0.4)'}`,
+    backgroundColor: 'rgba(15, 23, 42, 0.95)'
+  } : {};
+
   return (
     <button
       type="button"
       disabled={isLocked}
       onClick={onClick}
-      className={`py-2.5 px-1 rounded-xl border flex flex-col items-center justify-center transition-all relative ${
+      style={dynamicStyle}
+      className={`py-2.5 px-1 rounded-xl border flex flex-col items-center justify-center transition-all relative cursor-pointer ${
         isCorrect 
           ? 'bg-emerald-950/50 border-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.35)]' 
           : isWrong
           ? 'bg-rose-950/30 border-rose-600/60 text-slate-400 line-through'
           : isSelected
-          ? 'bg-slate-800 border-amber-400 text-white shadow-[0_0_12px_rgba(251,191,36,0.3)]'
+          ? 'text-white'
           : isLocked
           ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed'
-          : 'bg-slate-900/80 hover:bg-slate-800/80 border-slate-700/80 text-slate-200 active:scale-95 cursor-pointer'
+          : 'bg-slate-900/80 hover:bg-slate-800/80 border-slate-700/80 text-slate-200 active:scale-95'
       }`}
     >
       <span className="text-[10px] font-bold uppercase tracking-wide truncate max-w-full">
@@ -238,7 +272,13 @@ function BetButton({ label, code, isSelected, isLocked, isCorrect, isWrong, onCl
       </span>
 
       {isSelected && (
-        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24]" />
+        <span 
+          className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" 
+          style={{ 
+            backgroundColor: activeTheme?.primary || '#ffd700',
+            boxShadow: `0 0 6px ${activeTheme?.primary || '#ffd700'}`
+          }}
+        />
       )}
     </button>
   );
