@@ -1,84 +1,117 @@
 ﻿import React, { useState } from 'react';
 import { useTheme, CLUB_THEMES } from '../contexts/ThemeContext';
-import { Trophy, Shield, LogOut, Check } from 'lucide-react';
+import { Trophy, Shield, LogOut, Check, ChevronDown, Plus } from 'lucide-react';
 
-export function Header({ onOpenLeaderboard }) {
+export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
   const { currentUser, activeTheme, changeFavoriteClub, logout } = useTheme();
   const [showClubModal, setShowClubModal] = useState(false);
 
-  const balance = currentUser ? Number(currentUser.balance).toFixed(2) : '0.00';
+  const balance = activeLeague ? Number(activeLeague.user_balance || 0).toFixed(2) : '0.00';
   const isPositive = Number(balance) > 0;
   const isNegative = Number(balance) < 0;
 
   return (
     <header className="sticky top-0 z-30 bg-[#06070b]/95 backdrop-blur-md border-b border-slate-800/80 safe-top px-3 py-2.5">
-      <div className="max-w-md mx-auto flex items-center justify-between">
+      <div className="max-w-md mx-auto space-y-2">
         
-        {/* Brand & Club Badge (Click to open Club Color Picker) */}
-        <div className="flex items-center gap-2">
-          <button 
-            type="button"
-            onClick={() => setShowClubModal(true)}
-            className="w-10 h-10 rounded-xl bg-slate-900 border flex items-center justify-center text-xl active:scale-95 transition-all shadow-lg cursor-pointer"
-            style={{ borderColor: activeTheme.primary, boxShadow: `0 0 12px ${activeTheme.glow}` }}
-            title="Mudar cores do teu clube"
-          >
-            {activeTheme.badge}
-          </button>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="font-orbitron text-lg font-black tracking-wider text-white flex items-center">
-                STRIKER
-              </h1>
-              <span className="text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40">
-                LIGA
-              </span>
-            </div>
-            <div className="text-[11px] text-slate-400 flex items-center gap-1">
-              <span>Jogador:</span>
-              <span className="text-white font-bold">{currentUser?.name || 'Visitante'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* User Balance & Actions */}
-        <div className="flex items-center gap-2">
-          {/* Balance Display Pill (Visual display, no popup!) */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 shadow-inner">
-            <span className="text-xs">{currentUser?.avatar || '⚽'}</span>
-            <div className="text-right">
-              <span className="text-[9px] text-slate-400 block -mb-1 leading-tight">SALDO</span>
-              <span className={`text-xs font-bold font-orbitron ${
-                isPositive ? 'text-emerald-400' : isNegative ? 'text-rose-400' : 'text-slate-200'
-              }`}>
-                {isPositive ? `+${balance}` : balance} <span className="text-[9px] font-normal text-slate-400">pts</span>
-              </span>
+        {/* Top Row: Brand, User, Club and Actions */}
+        <div className="flex items-center justify-between">
+          
+          {/* Brand & Club Badge */}
+          <div className="flex items-center gap-2">
+            <button 
+              type="button"
+              onClick={() => setShowClubModal(true)}
+              className="w-9 h-9 rounded-xl bg-slate-900 border flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg cursor-pointer"
+              style={{ borderColor: activeTheme.primary, boxShadow: `0 0 10px ${activeTheme.glow}` }}
+              title="Mudar cores do teu clube"
+            >
+              {activeTheme.badge}
+            </button>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <h1 className="font-orbitron text-base font-black tracking-wider text-white flex items-center">
+                  STRIKER
+                </h1>
+                <span className="text-[8px] uppercase font-bold tracking-widest px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40">
+                  PRO
+                </span>
+              </div>
+              <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                <span>Olá,</span>
+                <span className="text-white font-bold">{currentUser?.name || 'Visitante'}</span>
+              </div>
             </div>
           </div>
 
-          {/* Ranking Button (Trophy) */}
-          <button
-            type="button"
-            onClick={onOpenLeaderboard}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-amber-400 active:scale-90 transition-all cursor-pointer"
-            title="Classificações & Ranking"
-          >
-            <Trophy size={18} />
-          </button>
+          {/* Right Actions: Balance, Trophy & Logout */}
+          <div className="flex items-center gap-1.5">
+            {/* Balance Pill */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 shadow-inner">
+              <span className="text-xs">{currentUser?.avatar || '⚽'}</span>
+              <div className="text-right">
+                <span className="text-[8px] text-slate-400 block -mb-1 leading-tight">SALDO</span>
+                <span className={`text-[11px] font-bold font-orbitron ${
+                  isPositive ? 'text-emerald-400' : isNegative ? 'text-rose-400' : 'text-slate-200'
+                }`}>
+                  {isPositive ? `+${balance}` : balance} <span className="text-[8px] font-normal text-slate-400">pts</span>
+                </span>
+              </div>
+            </div>
 
-          {/* Logout / Switch User */}
+            {/* Ranking (Trophy) */}
+            <button
+              type="button"
+              onClick={onOpenLeaderboard}
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-amber-400 active:scale-90 transition-all cursor-pointer"
+              title="Classificações & Ranking"
+            >
+              <Trophy size={16} />
+            </button>
+
+            {/* Logout */}
+            <button
+              type="button"
+              onClick={logout}
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-rose-400 active:scale-90 transition-all cursor-pointer"
+              title="Mudar de Jogador / Sair"
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
+        </div>
+
+        {/* Bottom Row: Active League Selector */}
+        <div className="flex items-center justify-between pt-0.5">
           <button
             type="button"
-            onClick={logout}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-rose-400 active:scale-90 transition-all cursor-pointer"
-            title="Mudar de Jogador / Sair"
+            onClick={onOpenLeagueModal}
+            className="w-full py-1.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-400/50 flex items-center justify-between transition-all group active:scale-99 shadow-sm"
           >
-            <LogOut size={16} />
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-xs">🏆</span>
+              <div className="text-left truncate">
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block -mb-0.5">Campeonato Ativo</span>
+                <span className="text-xs font-bold text-amber-300 truncate font-orbitron group-hover:text-amber-200">
+                  {activeLeague ? activeLeague.name : 'Nenhum campeonato selecionado'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              {activeLeague && (
+                <span className="text-[10px] font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">
+                  #{activeLeague.code}
+                </span>
+              )}
+              <ChevronDown size={14} className="text-slate-400 group-hover:text-white transition-colors" />
+            </div>
           </button>
         </div>
+
       </div>
 
-      {/* Club Theme Selector Modal (PERFECTLY CENTERED in screen) */}
+      {/* Club Theme Selector Modal */}
       {showClubModal && (
         <div 
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150"

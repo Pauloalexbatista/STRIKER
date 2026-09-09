@@ -14,7 +14,6 @@ export function initDb() {
       pin TEXT NOT NULL DEFAULT '1234',
       favorite_club TEXT NOT NULL DEFAULT 'SCP',
       avatar TEXT,
-      balance REAL NOT NULL DEFAULT 0.00,
       created_at TEXT NOT NULL
     );
 
@@ -27,6 +26,25 @@ export function initDb() {
       accent_color TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS leagues (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      code TEXT UNIQUE NOT NULL,
+      creator_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (creator_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS league_members (
+      league_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      balance REAL NOT NULL DEFAULT 0.00,
+      joined_at TEXT NOT NULL,
+      PRIMARY KEY (league_id, user_id),
+      FOREIGN KEY (league_id) REFERENCES leagues(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
     CREATE TABLE IF NOT EXISTS games (
       id TEXT PRIMARY KEY,
       round INTEGER NOT NULL,
@@ -37,7 +55,6 @@ export function initDb() {
       home_score INTEGER,
       away_score INTEGER,
       result TEXT,
-      pool_points REAL NOT NULL DEFAULT 0.00,
       FOREIGN KEY (home_club_id) REFERENCES clubs(id),
       FOREIGN KEY (away_club_id) REFERENCES clubs(id)
     );
@@ -46,14 +63,15 @@ export function initDb() {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       game_id TEXT NOT NULL,
+      league_id TEXT NOT NULL,
       choice TEXT NOT NULL,
       created_at TEXT NOT NULL,
-      deducted INTEGER NOT NULL DEFAULT 0,
       points_won REAL NOT NULL DEFAULT 0.00,
       net_points REAL NOT NULL DEFAULT 0.00,
-      UNIQUE(user_id, game_id),
+      UNIQUE(user_id, game_id, league_id),
       FOREIGN KEY (user_id) REFERENCES users(id),
-      FOREIGN KEY (game_id) REFERENCES games(id)
+      FOREIGN KEY (game_id) REFERENCES games(id),
+      FOREIGN KEY (league_id) REFERENCES leagues(id)
     );
   `);
 }

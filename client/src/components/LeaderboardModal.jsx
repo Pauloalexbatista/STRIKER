@@ -1,20 +1,20 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { fetchRoundLeaderboard, fetchGeneralLeaderboard } from '../services/api';
-import { Trophy, Medal, Award, X, Target, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trophy, Medal, Award, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
-export function LeaderboardModal({ isOpen, onClose }) {
-  const [activeTab, setActiveTab] = useState('general'); // 'round' or 'general'
-  const [round, setRound] = useState(25);
+export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
+  const [activeTab, setActiveTab] = useState('general');
+  const [round, setRound] = useState(3);
   const [roundData, setRoundData] = useState([]);
   const [generalData, setGeneralData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !activeLeague) return;
     setLoading(true);
 
     if (activeTab === 'round') {
-      fetchRoundLeaderboard(round)
+      fetchRoundLeaderboard(round, activeLeague.id)
         .then(res => {
           setRoundData(res.leaderboard || []);
           setLoading(false);
@@ -24,7 +24,7 @@ export function LeaderboardModal({ isOpen, onClose }) {
           setLoading(false);
         });
     } else {
-      fetchGeneralLeaderboard()
+      fetchGeneralLeaderboard(activeLeague.id)
         .then(res => {
           setGeneralData(res || []);
           setLoading(false);
@@ -34,7 +34,7 @@ export function LeaderboardModal({ isOpen, onClose }) {
           setLoading(false);
         });
     }
-  }, [isOpen, activeTab, round]);
+  }, [isOpen, activeTab, round, activeLeague?.id]);
 
   if (!isOpen) return null;
 
@@ -46,9 +46,14 @@ export function LeaderboardModal({ isOpen, onClose }) {
       >
         {/* Modal Header */}
         <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Trophy size={20} className="text-amber-400" />
-            <h2 className="text-base font-bold text-white font-orbitron">Classificações</h2>
+          <div>
+            <div className="flex items-center gap-2">
+              <Trophy size={18} className="text-amber-400" />
+              <h2 className="text-base font-bold text-white font-orbitron">Classificações</h2>
+            </div>
+            <p className="text-[11px] text-amber-300 font-medium mt-0.5">
+              Liga: {activeLeague ? activeLeague.name : 'Geral'}
+            </p>
           </div>
 
           <button 
@@ -69,7 +74,7 @@ export function LeaderboardModal({ isOpen, onClose }) {
                 : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
             }`}
           >
-            <Award size={14} /> Top Striker Geral
+            <Award size={14} /> Top Geral da Liga
           </button>
           <button
             onClick={() => setActiveTab('round')}
@@ -113,9 +118,8 @@ export function LeaderboardModal({ isOpen, onClose }) {
               A carregar ranking...
             </div>
           ) : activeTab === 'general' ? (
-            // TAB GERAL
             generalData.length === 0 ? (
-              <div className="py-8 text-center text-slate-500 text-xs">Sem dados de ranking.</div>
+              <div className="py-8 text-center text-slate-500 text-xs">Sem dados de ranking para esta liga.</div>
             ) : (
               generalData.map((user, idx) => {
                 const isPos = Number(user.balance) > 0;
@@ -134,7 +138,6 @@ export function LeaderboardModal({ isOpen, onClose }) {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      {/* Position Badge */}
                       <div className="w-6 text-center font-orbitron text-xs font-black">
                         {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
                       </div>
@@ -156,7 +159,6 @@ export function LeaderboardModal({ isOpen, onClose }) {
                       </div>
                     </div>
 
-                    {/* Balance */}
                     <div className="text-right">
                       <div className={`text-sm font-bold font-orbitron ${
                         isPos ? 'text-emerald-400' : isNeg ? 'text-rose-400' : 'text-slate-300'
@@ -170,7 +172,6 @@ export function LeaderboardModal({ isOpen, onClose }) {
               })
             )
           ) : (
-            // TAB JORNADA
             roundData.length === 0 ? (
               <div className="py-8 text-center text-slate-500 text-xs">Sem jogos concluídos nesta jornada.</div>
             ) : (

@@ -1,10 +1,10 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { BarChart3, Clock, Lock, CheckCircle2, Flame } from 'lucide-react';
+import { BarChart3, Clock, Lock, CheckCircle2 } from 'lucide-react';
 import { submitPrediction } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 
-export function GameCard({ game, onOpenReport, onPredictionUpdated }) {
-  const { currentUser, activeTheme } = useTheme();
+export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated }) {
+  const { currentUser } = useTheme();
   const [timeLeft, setTimeLeft] = useState('');
   const [isLocked, setIsLocked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -14,7 +14,6 @@ export function GameCard({ game, onOpenReport, onPredictionUpdated }) {
     setUserChoice(game.user_prediction);
   }, [game.user_prediction]);
 
-  // Live countdown to kickoff
   useEffect(() => {
     const updateCountdown = () => {
       const now = Date.now();
@@ -49,11 +48,11 @@ export function GameCard({ game, onOpenReport, onPredictionUpdated }) {
   }, [game.kickoff_time, game.status]);
 
   const handleSelectChoice = async (choice) => {
-    if (isLocked || submitting || !currentUser) return;
+    if (isLocked || submitting || !currentUser || !activeLeague) return;
     try {
       setSubmitting(true);
       setUserChoice(choice);
-      await submitPrediction(currentUser.id, game.id, choice);
+      await submitPrediction(currentUser.id, game.id, choice, activeLeague.id);
       if (onPredictionUpdated) onPredictionUpdated();
     } catch (err) {
       console.error('Error submitting prediction:', err);
@@ -64,6 +63,7 @@ export function GameCard({ game, onOpenReport, onPredictionUpdated }) {
 
   const isLive = game.status === 'LIVE';
   const isFinished = game.status === 'FINISHED';
+  const totalBets = game.league_total_bets || 0;
 
   return (
     <div className="bg-[#0b0e17] rounded-2xl border border-slate-800/90 p-3.5 shadow-xl transition-all relative overflow-hidden">
@@ -75,7 +75,7 @@ export function GameCard({ game, onOpenReport, onPredictionUpdated }) {
             J{game.round}
           </span>
           <span className="text-[11px] text-slate-400 font-medium">
-            {new Date(game.kickoff_time).toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short' })}
+            {new Date(game.kickoff_time).toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
 
@@ -110,14 +110,14 @@ export function GameCard({ game, onOpenReport, onPredictionUpdated }) {
           <button
             onClick={() => onOpenReport(game.id)}
             className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 active:scale-90 transition-all flex items-center gap-1"
-            title="Abrir Relatório 3 Colunas"
+            title="Abrir Relatório da Liga"
           >
             <BarChart3 size={15} className="text-cyan-400" />
           </button>
         </div>
       </div>
 
-      {/* Clubs & Score / Matchup Display */}
+      {/* Clubs & Score Display */}
       <div className="py-3 flex items-center justify-between px-1">
         
         {/* Home Club */}
@@ -155,45 +155,39 @@ export function GameCard({ game, onOpenReport, onPredictionUpdated }) {
       {/* Direct Prediction Buttons: [ HOME ] [ EMPATE ] [ AWAY ] */}
       <div className="grid grid-cols-3 gap-2 pt-1">
         
-        {/* 1. Home Button */}
         <BetButton
           label={game.home_short}
           code="1"
           isSelected={userChoice === 'HOME'}
-          isLocked={isLocked}
+          isLocked={isLocked || !activeLeague}
           isCorrect={isFinished && game.result === 'HOME'}
           isWrong={isFinished && userChoice === 'HOME' && game.result !== 'HOME'}
           onClick={() => handleSelectChoice('HOME')}
-          accentColor={game.home_color}
         />
 
-        {/* 2. Draw Button */}
         <BetButton
           label="EMPATE"
           code="X"
           isSelected={userChoice === 'DRAW'}
-          isLocked={isLocked}
+          isLocked={isLocked || !activeLeague}
           isCorrect={isFinished && game.result === 'DRAW'}
           isWrong={isFinished && userChoice === 'DRAW' && game.result !== 'DRAW'}
           onClick={() => handleSelectChoice('DRAW')}
-          accentColor="#94a3b8"
         />
 
-        {/* 3. Away Button */}
         <BetButton
           label={game.away_short}
           code="2"
           isSelected={userChoice === 'AWAY'}
-          isLocked={isLocked}
+          isLocked={isLocked || !activeLeague}
           isCorrect={isFinished && game.result === 'AWAY'}
           isWrong={isFinished && userChoice === 'AWAY' && game.result !== 'AWAY'}
           onClick={() => handleSelectChoice('AWAY')}
-          accentColor={game.away_color}
         />
 
       </div>
 
-      {/* Prediction Feedback & Points Status */}
+      {/* Prediction Feedback & League Pool */}
       <div className="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
         <div className="text-slate-400 flex items-center gap-1">
           {userChoice ? (
@@ -208,27 +202,17 @@ export function GameCard({ game, onOpenReport, onPredictionUpdated }) {
           )}
         </div>
 
-        {/* Net result if finished */}
-        {isFinished && userChoice && (
-          <div>
-            {game.user_net_points > 0 ? (
-              <span className="font-bold text-emerald-400 font-orbitron">
-                +{Number(game.user_net_points).toFixed(2)} pts
-              </span>
-            ) : (
-              <span className="font-bold text-rose-400 font-orbitron">
-                -1.00 pt
-              </span>
-            )}
-          </div>
-        )}
+        {/* Pool for this league */}
+        <div className="text-slate-400 font-mono text-[10px]">
+          Pote: <span className="font-bold text-amber-400 font-orbitron">{totalBets}.00 pts</span> ({totalBets} apostas)
+        </div>
       </div>
 
     </div>
   );
 }
 
-function BetButton({ label, code, isSelected, isLocked, isCorrect, isWrong, onClick, accentColor }) {
+function BetButton({ label, code, isSelected, isLocked, isCorrect, isWrong, onClick }) {
   return (
     <button
       type="button"
@@ -243,7 +227,7 @@ function BetButton({ label, code, isSelected, isLocked, isCorrect, isWrong, onCl
           ? 'bg-slate-800 border-amber-400 text-white shadow-[0_0_12px_rgba(251,191,36,0.3)]'
           : isLocked
           ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed'
-          : 'bg-slate-900/80 hover:bg-slate-800/80 border-slate-700/80 text-slate-200 active:scale-95'
+          : 'bg-slate-900/80 hover:bg-slate-800/80 border-slate-700/80 text-slate-200 active:scale-95 cursor-pointer'
       }`}
     >
       <span className="text-[10px] font-bold uppercase tracking-wide truncate max-w-full">
@@ -253,7 +237,6 @@ function BetButton({ label, code, isSelected, isLocked, isCorrect, isWrong, onCl
         ({code})
       </span>
 
-      {/* Selected Indicator Glow Dot */}
       {isSelected && (
         <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24]" />
       )}

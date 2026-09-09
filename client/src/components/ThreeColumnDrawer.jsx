@@ -1,15 +1,15 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { fetchGameReport } from '../services/api';
-import { X, Lock, Eye, CheckCircle2, TrendingUp, Award, Clock } from 'lucide-react';
+import { X, Lock, Eye, CheckCircle2, TrendingUp, Award } from 'lucide-react';
 
-export function ThreeColumnDrawer({ gameId, onClose }) {
+export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!gameId) return;
     setLoading(true);
-    fetchGameReport(gameId)
+    fetchGameReport(gameId, activeLeague?.id || '')
       .then(res => {
         setData(res);
         setLoading(false);
@@ -18,7 +18,7 @@ export function ThreeColumnDrawer({ gameId, onClose }) {
         console.error('Error fetching report:', err);
         setLoading(false);
       });
-  }, [gameId]);
+  }, [gameId, activeLeague?.id]);
 
   if (!gameId) return null;
 
@@ -37,8 +37,8 @@ export function ThreeColumnDrawer({ gameId, onClose }) {
         <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
-                Jornada {data?.game?.round || 25}
+              <span className="text-xs uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700 font-mono">
+                {activeLeague ? activeLeague.name : 'Geral'}
               </span>
               {data?.game?.status === 'UPCOMING' && (
                 <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
@@ -75,7 +75,7 @@ export function ThreeColumnDrawer({ gameId, onClose }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp size={16} className="text-amber-400" />
-              <span className="text-xs text-slate-300 font-medium">Pote Total a Distribuir:</span>
+              <span className="text-xs text-slate-300 font-medium">Pote Desta Liga:</span>
               <span className="text-xs text-slate-400 font-mono">({data?.totalBets || 0} apostas)</span>
             </div>
             <div className="text-sm font-bold font-orbitron text-amber-400">
@@ -84,8 +84,8 @@ export function ThreeColumnDrawer({ gameId, onClose }) {
           </div>
           
           <div className="text-[10px] text-slate-400 flex items-center gap-1">
-            <span className="text-amber-400 font-semibold">Regra Oficial:</span>
-            <span>Contas feitas no Apito Final • Quem acerta ganha (Pote ÷ Vencedores) • Quem erra perde 1 pt (-1.00)</span>
+            <span className="text-amber-400 font-semibold">Regra da Liga:</span>
+            <span>Contas no apito final • Acertadores dividem o pote de {Number(data?.poolPoints || 0).toFixed(2)} pts • Quem erra perde 1 pt</span>
           </div>
         </div>
 
@@ -97,14 +97,12 @@ export function ThreeColumnDrawer({ gameId, onClose }) {
             </div>
           ) : (
             <>
-              {/* The 3 Columns Grid */}
               <div className="grid grid-cols-3 gap-2">
                 
                 {/* 1. Coluna CASA */}
                 <ColumnBlock 
                   title={data.columns.home.title}
                   subTitle="Vitória Casa (1)"
-                  badgeColor={data.game.home_color}
                   bets={data.columns.home.bets}
                   count={data.columns.home.count}
                   isLocked={data.isLocked}
@@ -116,7 +114,6 @@ export function ThreeColumnDrawer({ gameId, onClose }) {
                 <ColumnBlock 
                   title="EMPATE"
                   subTitle="Igualdade (X)"
-                  badgeColor="#94a3b8"
                   bets={data.columns.draw.bets}
                   count={data.columns.draw.count}
                   isLocked={data.isLocked}
@@ -128,7 +125,6 @@ export function ThreeColumnDrawer({ gameId, onClose }) {
                 <ColumnBlock 
                   title={data.columns.away.title}
                   subTitle="Vitória Fora (2)"
-                  badgeColor={data.game.away_color}
                   bets={data.columns.away.bets}
                   count={data.columns.away.count}
                   isLocked={data.isLocked}
@@ -143,14 +139,14 @@ export function ThreeColumnDrawer({ gameId, onClose }) {
                 <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5">
                   <Lock size={16} className="text-amber-400 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-200/90 leading-relaxed">
-                    <strong className="text-amber-300">Apostas Secretas:</strong> Podes ver quantas pessoas apostaram em cada coluna ({data.columns.home.count} | {data.columns.draw.count} | {data.columns.away.count}), mas os nomes só aparecem no apito inicial (00:00). Ninguém paga nada à cabeça.
+                    <strong className="text-amber-300">Apostas Secretas na Liga:</strong> Podes ver quantas pessoas apostaram em cada coluna ({data.columns.home.count} | {data.columns.draw.count} | {data.columns.away.count}), mas os nomes só aparecem no apito inicial.
                   </p>
                 </div>
               ) : data.game.status === 'LIVE' ? (
                 <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5">
                   <Eye size={16} className="text-rose-400 shrink-0 mt-0.5" />
                   <p className="text-xs text-rose-200/90 leading-relaxed">
-                    <strong className="text-rose-300">Jogo a Decorrer:</strong> Todos os palpites foram revelados. O saldo ainda não foi alterado. Ao apito final, quem acertou recebe a sua parte de {Number(data.poolPoints).toFixed(2)} pts e quem errou perde 1 pt (-1.00)!
+                    <strong className="text-rose-300">Jogo a Decorrer:</strong> Todos os palpites foram revelados. Ao apito final, quem acertou recebe a sua parte de {Number(data.poolPoints).toFixed(2)} pts e quem errou perde 1 pt (-1.00)!
                   </p>
                 </div>
               ) : (
@@ -169,21 +165,19 @@ export function ThreeColumnDrawer({ gameId, onClose }) {
   );
 }
 
-function ColumnBlock({ title, subTitle, badgeColor, bets, count, isLocked, isWinner, status }) {
+function ColumnBlock({ title, subTitle, bets, count, isLocked, isWinner, status }) {
   return (
     <div className={`rounded-xl border flex flex-col p-2.5 transition-all ${
       isWinner 
         ? 'bg-emerald-950/40 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' 
         : 'bg-slate-900/60 border-slate-800'
     }`}>
-      {/* Column Title */}
       <div className="text-center pb-2 border-b border-slate-800">
         <div className="text-[11px] font-bold text-white truncate tracking-wide font-orbitron" title={title}>
           {title}
         </div>
         <div className="text-[9px] text-slate-400">{subTitle}</div>
         
-        {/* Count badge */}
         <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-[11px] font-bold text-slate-200 font-orbitron">
           {count} <span className="text-[9px] text-slate-400 font-normal">{count === 1 ? 'aposta' : 'apostas'}</span>
         </div>
@@ -195,7 +189,6 @@ function ColumnBlock({ title, subTitle, badgeColor, bets, count, isLocked, isWin
         )}
       </div>
 
-      {/* Bets List */}
       <div className="mt-2 space-y-1.5 flex-1 min-h-[120px]">
         {!isLocked ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-2 text-slate-500 text-[11px]">
@@ -227,7 +220,6 @@ function ColumnBlock({ title, subTitle, badgeColor, bets, count, isLocked, isWin
                   </span>
                 </div>
 
-                {/* Points tag */}
                 <div className="shrink-0 text-right">
                   {status === 'FINISHED' ? (
                     hasWon ? (

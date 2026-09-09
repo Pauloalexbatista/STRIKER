@@ -5,7 +5,7 @@ import { FootballApiService } from '../services/footballApiService.js';
 
 export const router = express.Router();
 
-// 1. Auth: Login ou Registo Rápido (Família & Amigos)
+// 1. Auth: Login ou Registo Rápido
 router.post('/auth/login', (req, res) => {
   const { name, pin, favoriteClub } = req.body;
   if (!name || !pin) {
@@ -15,7 +15,6 @@ router.post('/auth/login', (req, res) => {
   const cleanName = name.trim();
   const cleanPin = pin.trim();
 
-  // Procurar utilizador existente pelo nome (case-insensitive)
   const existing = db.prepare('SELECT * FROM users WHERE LOWER(name) = LOWER(?)').get(cleanName);
 
   if (existing) {
@@ -25,7 +24,6 @@ router.post('/auth/login', (req, res) => {
     return res.json({ user: existing, isNew: false });
   }
 
-  // Se não existe, cria um novo jogador com 0.00 pts
   const clubAvatars = {
     SCP: '🦁', SLB: '🦅', FCP: '🐉', SCB: '⚔️', VSC: '🛡️', GOLD: '⚡'
   };
@@ -36,65 +34,131 @@ router.post('/auth/login', (req, res) => {
   const now = new Date().toISOString();
 
   db.prepare(`
-    INSERT INTO users (id, name, pin, favorite_club, balance, avatar, created_at)
-    VALUES (?, ?, ?, ?, 0.00, ?, ?)
+    INSERT INTO users (id, name, pin, favorite_club, avatar, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
   `).run(id, cleanName, cleanPin, club, avatar, now);
 
   const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   res.json({ user: newUser, isNew: true });
 });
 
-// 2. Obter lista de clubes
-router.get('/clubs', (req, res) => {
-  const clubs = db.prepare('SELECT * FROM clubs ORDER BY name ASC').all();
-  res.json(clubs);
+// 2. LIGAS: Criar Campeonato (Máximo 3 por utilizador)
+router.post('/leagues/create', (req, res) => {
+  const { userId, name, code } = req.body;
+  if (!userId || !name || !code) {
+    return res.status(400).json({ error: 'Nome da liga e código de convite são obrigatórios' });
+  }
+
+  // Verificar limite de 3 ligas criadas
+  const createdCount = db.prepare('SELECT COUNT(*) as count FROM leagues WHERE creator_id = ?').get(userId).count;
+  if (createdCount >= 3) {
+    return res.status(400).json({ error: 'Já atingiste o limite máximo de 3 campeonatos criados!' });
+  }
+
+  const cleanCode = code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+  if (cleanCode.length < 3) {
+    return res.status(400).json({ error: 'O código de convite deve ter pelo menos 3 caracteres' });
+  }
+
+  // Verificar se o código já existe
+  const existingCode = db.prepare('SELECT * FROM leagues WHERE code = ?').get(cleanCode);
+  if (existingCode) {
+    return res.status(400).json({ error: 'Este código de convite já está a ser usado. Escolhe outro!' });
+  }
+
+  const leagueId = 'l_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5);
+  const now = new Date().toISOString();
+
+  db.prepare(`
+    INSERT INTO leagues (id, name, code, creator_id, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(leagueId, name.trim(), cleanCode, userId, now);
+
+  // Adicionar o criador como 1º membro da liga com 0.00 pts
+  db.prepare(`
+    INSERT INTO league_members (league_id, user_id, balance, joined_at)
+    VALUES (?, ?, 0.00, ?)
+  `).run(leagueId, userId, now);
+
+  const league = db.prepare('SELECT * FROM leagues WHERE id = ?').get(leagueId);
+  res.json({ success: true, league });
 });
 
-// 3. Obter utilizadores e ranking
-router.get('/users', (req, res) => {
-  const users = db.prepare('SELECT id, name, favorite_club, avatar, balance FROM users ORDER BY balance DESC').all();
-  res.json(users);
+// 3. LIGAS: Entrar numa Liga por Código de Convite
+router.post('/leagues/join', (req, res) => {
+  const { userId, code } = req.body;
+  if (!userId || !code) {
+    return res.status(400).json({ error: 'Código de convite obrigatório' });
+  }
+
+  const cleanCode = code.trim().toUpperCase();
+  const league = db.prepare('SELECT * FROM leagues WHERE code = ?').get(cleanCode);
+  if (!league) {
+    return res.status(404).json({ error: 'Campeonato não encontrado com esse código de convite!' });
+  }
+
+  const isMember = db.prepare('SELECT * FROM league_members WHERE league_id = ? AND user_id = ?').get(league.id, userId);
+  if (!isMember) {
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT INTO league_members (league_id, user_id, balance, joined_at)
+      VALUES (?, ?, 0.00, ?)
+    `).run(league.id, userId, now);
+  }
+
+  res.json({ success: true, league });
 });
 
-// 4. Mudar clube favorito do utilizador
-router.post('/users/update-club', (req, res) => {
-  const { userId, clubId } = req.body;
-  if (!userId || !clubId) return res.status(400).json({ error: 'Parâmetros em falta' });
-  
-  const clubAvatars = { SCP: '🦁', SLB: '🦅', FCP: '🐉', SCB: '⚔️', VSC: '🛡️', GOLD: '⚡' };
-  const avatar = clubAvatars[clubId] || '⚽';
+// 4. LIGAS: Obter as minhas ligas
+router.get('/leagues/my', (req, res) => {
+  const userId = req.query.userId;
+  if (!userId) return res.json([]);
 
-  db.prepare('UPDATE users SET favorite_club = ?, avatar = ? WHERE id = ?').run(clubId, avatar, userId);
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-  res.json(user);
+  const leagues = db.prepare(`
+    SELECT 
+      l.*,
+      lm.balance as user_balance,
+      (SELECT COUNT(*) FROM league_members WHERE league_id = l.id) as total_members,
+      CASE WHEN l.creator_id = ? THEN 1 ELSE 0 END as is_creator
+    FROM leagues l
+    JOIN league_members lm ON l.id = lm.league_id
+    WHERE lm.user_id = ?
+    ORDER BY l.created_at ASC
+  `).all(userId, userId);
+
+  const createdCount = db.prepare('SELECT COUNT(*) as count FROM leagues WHERE creator_id = ?').get(userId).count;
+
+  res.json({ leagues, createdCount, maxAllowed: 3 });
 });
 
-// 5. Obter jogos da jornada
+// 5. Obter jogos da jornada (adaptados à liga ativa)
 router.get('/games', (req, res) => {
   const round = req.query.round ? parseInt(req.query.round) : 3;
   const userId = req.query.userId || '';
+  const leagueId = req.query.leagueId || '';
 
   const games = db.prepare(`
     SELECT 
       g.*,
       hc.name as home_name, hc.short_name as home_short, hc.primary_color as home_color, hc.accent_color as home_accent,
       ac.name as away_name, ac.short_name as away_short, ac.primary_color as away_color, ac.accent_color as away_accent,
-      p.choice as user_prediction, p.points_won as user_points_won, p.net_points as user_net_points
+      p.choice as user_prediction, p.points_won as user_points_won, p.net_points as user_net_points,
+      (SELECT COUNT(*) FROM predictions WHERE game_id = g.id AND league_id = ?) as league_total_bets
     FROM games g
     JOIN clubs hc ON g.home_club_id = hc.id
     JOIN clubs ac ON g.away_club_id = ac.id
-    LEFT JOIN predictions p ON p.game_id = g.id AND p.user_id = ?
+    LEFT JOIN predictions p ON p.game_id = g.id AND p.user_id = ? AND p.league_id = ?
     WHERE g.round = ?
     ORDER BY g.kickoff_time ASC
-  `).all(userId, round);
+  `).all(leagueId, userId, leagueId, round);
 
   res.json(games);
 });
 
-// 6. Colocar / Alterar palpite
+// 6. Colocar / Alterar palpite (por liga)
 router.post('/predictions', (req, res) => {
-  const { userId, gameId, choice } = req.body;
-  if (!userId || !gameId || !choice) {
+  const { userId, gameId, choice, leagueId } = req.body;
+  if (!userId || !gameId || !choice || !leagueId) {
     return res.status(400).json({ error: 'Dados incompletos' });
   }
 
@@ -107,29 +171,27 @@ router.post('/predictions', (req, res) => {
   }
 
   const now = new Date().toISOString();
-  const existing = db.prepare('SELECT * FROM predictions WHERE user_id = ? AND game_id = ?').get(userId, gameId);
+  const existing = db.prepare('SELECT * FROM predictions WHERE user_id = ? AND game_id = ? AND league_id = ?').get(userId, gameId, leagueId);
   
   if (existing) {
     db.prepare('UPDATE predictions SET choice = ?, created_at = ? WHERE id = ?').run(choice, now, existing.id);
   } else {
     const id = 'p_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     db.prepare(`
-      INSERT INTO predictions (id, user_id, game_id, choice, created_at, deducted, points_won, net_points)
-      VALUES (?, ?, ?, ?, ?, 0, 0.00, 0.00)
-    `).run(id, userId, gameId, choice, now);
+      INSERT INTO predictions (id, user_id, game_id, league_id, choice, created_at, points_won, net_points)
+      VALUES (?, ?, ?, ?, ?, ?, 0.00, 0.00)
+    `).run(id, userId, gameId, leagueId, choice, now);
   }
 
-  // Atualizar contagem do pote do jogo
-  const totalBets = db.prepare('SELECT COUNT(*) as count FROM predictions WHERE game_id = ?').get(gameId).count;
-  db.prepare('UPDATE games SET pool_points = ? WHERE id = ?').run(totalBets * 1.00, gameId);
-
-  const pred = db.prepare('SELECT * FROM predictions WHERE user_id = ? AND game_id = ?').get(userId, gameId);
+  const pred = db.prepare('SELECT * FROM predictions WHERE user_id = ? AND game_id = ? AND league_id = ?').get(userId, gameId, leagueId);
   res.json({ success: true, prediction: pred });
 });
 
-// 7. Relatório das 3 colunas
+// 7. Relatório das 3 colunas (filtrado pela liga ativa)
 router.get('/games/:id/report', (req, res) => {
   const gameId = req.params.id;
+  const leagueId = req.query.leagueId;
+
   const game = db.prepare(`
     SELECT g.*, 
       hc.name as home_name, hc.short_name as home_short, hc.primary_color as home_color, hc.accent_color as home_accent,
@@ -142,12 +204,13 @@ router.get('/games/:id/report', (req, res) => {
 
   if (!game) return res.status(404).json({ error: 'Jogo não encontrado' });
 
+  // Buscar apenas palpites dos membros desta liga
   const bets = db.prepare(`
     SELECT p.*, u.name as user_name, u.avatar as user_avatar, u.favorite_club as user_club
     FROM predictions p
     JOIN users u ON p.user_id = u.id
-    WHERE p.game_id = ?
-  `).all(gameId);
+    WHERE p.game_id = ? AND p.league_id = ?
+  `).all(gameId, leagueId);
 
   const homeBets = bets.filter(b => b.choice === 'HOME');
   const drawBets = bets.filter(b => b.choice === 'DRAW');
@@ -173,7 +236,7 @@ router.get('/games/:id/report', (req, res) => {
     game,
     isLocked: true,
     totalBets,
-    poolPoints: game.pool_points || pool,
+    poolPoints: pool,
     columns: {
       home: { title: game.home_short, count: homeBets.length, bets: homeBets },
       draw: { title: 'EMPATE', count: drawBets.length, bets: drawBets },
@@ -182,45 +245,64 @@ router.get('/games/:id/report', (req, res) => {
   });
 });
 
-// 8. Rankings
+// 8. Rankings da Liga Ativa
 router.get('/leaderboard/round/:round', (req, res) => {
   const round = parseInt(req.params.round);
+  const leagueId = req.query.leagueId;
+
   const roundResults = db.prepare(`
     SELECT 
       u.id, u.name, u.avatar, u.favorite_club,
       COALESCE(ROUND(SUM(p.net_points), 2), 0.00) as round_points,
       COUNT(CASE WHEN p.net_points > 0 THEN 1 END) as round_wins,
       COUNT(p.id) as round_bets
-    FROM users u
-    LEFT JOIN predictions p ON p.user_id = u.id
+    FROM league_members lm
+    JOIN users u ON lm.user_id = u.id
+    LEFT JOIN predictions p ON p.user_id = u.id AND p.league_id = ?
     LEFT JOIN games g ON p.game_id = g.id AND g.round = ? AND g.status = 'FINISHED'
+    WHERE lm.league_id = ?
     GROUP BY u.id
     ORDER BY round_points DESC, round_wins DESC
-  `).all(round);
+  `).all(leagueId, round, leagueId);
 
   res.json({ round, leaderboard: roundResults });
 });
 
 router.get('/leaderboard/general', (req, res) => {
+  const leagueId = req.query.leagueId;
+
   const leaders = db.prepare(`
     SELECT 
-      u.id, u.name, u.avatar, u.favorite_club, u.balance,
+      u.id, u.name, u.avatar, u.favorite_club, lm.balance,
       COUNT(p.id) as total_bets,
       COUNT(CASE WHEN p.net_points > 0 THEN 1 END) as wins,
       CASE 
         WHEN COUNT(p.id) > 0 THEN ROUND((COUNT(CASE WHEN p.net_points > 0 THEN 1 END) * 100.0) / COUNT(p.id), 1)
         ELSE 0.0
       END as efficiency_pct
-    FROM users u
-    LEFT JOIN predictions p ON p.user_id = u.id AND p.net_points != 0
+    FROM league_members lm
+    JOIN users u ON lm.user_id = u.id
+    LEFT JOIN predictions p ON p.user_id = u.id AND p.league_id = ? AND p.net_points != 0
+    WHERE lm.league_id = ?
     GROUP BY u.id
-    ORDER BY u.balance DESC, efficiency_pct DESC
-  `).all();
+    ORDER BY lm.balance DESC, efficiency_pct DESC
+  `).all(leagueId, leagueId);
 
   res.json(leaders);
 });
 
-// 9. API de Sincronização Oficial com football-data.org
+// 9. Atualizar clube
+router.post('/users/update-club', (req, res) => {
+  const { userId, clubId } = req.body;
+  if (!userId || !clubId) return res.status(400).json({ error: 'Parâmetros em falta' });
+  const clubAvatars = { SCP: '🦁', SLB: '🦅', FCP: '🐉', SCB: '⚔️', VSC: '🛡️', GOLD: '⚡' };
+  const avatar = clubAvatars[clubId] || '⚽';
+  db.prepare('UPDATE users SET favorite_club = ?, avatar = ? WHERE id = ?').run(clubId, avatar, userId);
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  res.json(user);
+});
+
+// 10. Sincronizar API de futebol
 router.post('/admin/sync-api', async (req, res) => {
   const matchday = req.body.matchday ? parseInt(req.body.matchday) : 3;
   const result = await FootballApiService.syncMatchday(matchday);
