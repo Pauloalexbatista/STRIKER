@@ -1,6 +1,7 @@
 ﻿import express from 'express';
 import { db } from '../db/database.js';
 import { EconomyService } from '../services/economyService.js';
+import { FootballApiService } from '../services/footballApiService.js';
 
 export const router = express.Router();
 
@@ -70,7 +71,7 @@ router.post('/users/update-club', (req, res) => {
 
 // 5. Obter jogos da jornada
 router.get('/games', (req, res) => {
-  const round = req.query.round ? parseInt(req.query.round) : 25;
+  const round = req.query.round ? parseInt(req.query.round) : 3;
   const userId = req.query.userId || '';
 
   const games = db.prepare(`
@@ -219,14 +220,9 @@ router.get('/leaderboard/general', (req, res) => {
   res.json(leaders);
 });
 
-// 9. Admin / Simulação
-router.post('/admin/games/:id/lock', (req, res) => {
-  const result = EconomyService.lockGameAtKickoff(req.params.id);
-  res.json(result);
-});
-
-router.post('/admin/games/:id/settle', (req, res) => {
-  const { homeScore, awayScore } = req.body;
-  const result = EconomyService.settleGame(req.params.id, parseInt(homeScore), parseInt(awayScore));
+// 9. API de Sincronização Oficial com football-data.org
+router.post('/admin/sync-api', async (req, res) => {
+  const matchday = req.body.matchday ? parseInt(req.body.matchday) : 3;
+  const result = await FootballApiService.syncMatchday(matchday);
   res.json(result);
 });

@@ -7,8 +7,8 @@ export const EconomyService = {
     if (!game) return { error: 'Jogo não encontrado' };
     if (game.status !== 'UPCOMING') return game;
 
-    // Coloca jogo em DIRECTO
-    db.prepare('UPDATE games SET status = "LIVE" WHERE id = ?').run(gameId);
+    // Coloca jogo em DIRECTO (usar single quotes para string literal em SQLite)
+    db.prepare("UPDATE games SET status = 'LIVE' WHERE id = ?").run(gameId);
 
     // Contabiliza total de apostas para formar o pote do jogo
     const bets = db.prepare('SELECT * FROM predictions WHERE game_id = ?').all(gameId);
@@ -19,8 +19,6 @@ export const EconomyService = {
   },
 
   // Apito Final: As contas fazem-se AQUI!
-  // - Quem acertou: ganha (Pote / Vencedores) -> ex: 10 / 2 = +5.00 pts directos no saldo!
-  // - Quem errou: perde 1.00 pt -> -1.00 pt no saldo!
   settleGame(gameId, homeScore, awayScore) {
     const game = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
     if (!game) return { error: 'Jogo não encontrado' };
@@ -47,7 +45,7 @@ export const EconomyService = {
       pointsPerWinner = Number((pool / numWinners).toFixed(2));
     }
 
-    // 1. Processar VENCEDORES: cada um recebe a sua fatia completa do pote (ex: +5.00 pts)
+    // 1. Processar VENCEDORES
     for (const winner of winners) {
       db.prepare(`
         UPDATE predictions 
@@ -62,7 +60,7 @@ export const EconomyService = {
       `).run(pointsPerWinner, winner.user_id);
     }
 
-    // 2. Processar DERROTAS: cada um perde 1 ponto (-1.00 pt)
+    // 2. Processar DERROTAS
     for (const loser of losers) {
       db.prepare(`
         UPDATE predictions 
@@ -87,7 +85,6 @@ export const EconomyService = {
     return db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
   },
 
-  // Repor jogo para UPCOMING (reverte saldos se tinha sido finalizado)
   resetGame(gameId) {
     const game = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
     if (!game) return { error: 'Jogo não encontrado' };
@@ -96,17 +93,15 @@ export const EconomyService = {
       const bets = db.prepare('SELECT * FROM predictions WHERE game_id = ?').all(gameId);
       for (const bet of bets) {
         if (bet.net_points > 0) {
-          // Retirar pontos que tinham sido creditados
           db.prepare('UPDATE users SET balance = ROUND(balance - ?, 2) WHERE id = ?').run(bet.net_points, bet.user_id);
         } else if (bet.net_points === -1.00) {
-          // Devolver 1 ponto que tinha sido retirado
           db.prepare('UPDATE users SET balance = ROUND(balance + 1.00, 2) WHERE id = ?').run(bet.user_id);
         }
       }
     }
 
     db.prepare('UPDATE predictions SET deducted = 0, points_won = 0.00, net_points = 0.00 WHERE game_id = ?').run(gameId);
-    db.prepare('UPDATE games SET status = "UPCOMING", home_score = NULL, away_score = NULL, result = NULL, pool_points = 0.00 WHERE id = ?').run(gameId);
+    db.prepare("UPDATE games SET status = 'UPCOMING', home_score = NULL, away_score = NULL, result = NULL, pool_points = 0.00 WHERE id = ?").run(gameId);
     return db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
   }
 };
