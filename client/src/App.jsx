@@ -124,25 +124,10 @@ function StrikerApp() {
         onClose={() => setShowRules(false)}
       />
 
-      {/* Footer Fixo de Publicidade: Patrocinio da jornada */}
+      {/* Footer Fixo de Publicidade: Patrocinio da jornada com frases bem-humoradas rotativas */}
       <footer className="fixed bottom-0 left-0 right-0 z-30 bg-[#06070b]/95 backdrop-blur-md border-t border-slate-800/80 px-3 py-2 safe-bottom shadow-[0_-4px_25px_rgba(0,0,0,0.6)]">
         <div className="max-w-md mx-auto">
-          <div className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-1 flex items-center justify-between">
-            <span>Patrocinio da jornada:</span>
-            <span className="text-[8px] font-mono" style={{ color: activeTheme?.primary || '#ffd700' }}>OFICIAL</span>
-          </div>
-          <div 
-            className="h-10 rounded-xl border border-dashed flex items-center justify-center transition-all px-3 cursor-pointer select-none"
-            style={{ 
-              borderColor: `${hexToRgba(activeTheme?.primary, 0.4)}`, 
-              backgroundColor: `${hexToRgba(activeTheme?.primary, 0.05)}`,
-              color: activeTheme?.primary || '#ffd700'
-            }}
-          >
-            <span className="text-[11px] font-orbitron font-bold opacity-80 tracking-wider truncate">
-              Espa&ccedil;o Reservado para Patrocinador Oficial
-            </span>
-          </div>
+          <SponsorBanner title="Patrocínio da jornada:" isFooter={true} />
         </div>
       </footer>
 
