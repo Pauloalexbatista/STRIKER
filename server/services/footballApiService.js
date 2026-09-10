@@ -29,8 +29,8 @@ const TEAM_MAP = {
   'SL Benfica': 'SLB',
   'Porto': 'FCP',
   'Braga': 'SCB',
-  'Vitória SC': 'VSC',
-  'Famalicão': 'FCF',
+  'VitÃƒÂ³ria SC': 'VSC',
+  'FamalicÃƒÂ£o': 'FCF',
   'Moreirense': 'MFC',
   'Gil Vicente': 'GVC',
   'Rio Ave': 'RAV',
@@ -53,8 +53,8 @@ function resolveClubId(team) {
   if (name.includes('benfica')) return 'SLB';
   if (name.includes('porto')) return 'FCP';
   if (name.includes('braga')) return 'SCB';
-  if (name.includes('vitória') || name.includes('guimarães')) return 'VSC';
-  if (name.includes('famalicão')) return 'FCF';
+  if (name.includes('vitÃƒÂ³ria') || name.includes('guimarÃƒÂ£es')) return 'VSC';
+  if (name.includes('famalicÃƒÂ£o')) return 'FCF';
   if (name.includes('moreirense')) return 'MFC';
   if (name.includes('gil vicente')) return 'GVC';
   if (name.includes('rio ave')) return 'RAV';
@@ -73,7 +73,7 @@ function resolveClubId(team) {
 export const FootballApiService = {
   async syncMatchday(matchday = 3) {
     try {
-      console.log(`📡 A consultar football-data.org para a Jornada ${matchday}...`);
+      console.log(`Ã°Å¸â€œÂ¡ A consultar football-data.org para a Jornada ${matchday}...`);
       const res = await fetch(`${BASE_URL}/competitions/PPL/matches?matchday=${matchday}`, {
         headers: { 'X-Auth-Token': API_KEY }
       });
@@ -90,30 +90,29 @@ export const FootballApiService = {
       let updatedCount = 0;
 
       for (const m of data.matches) {
-        const gameId = `fd_${m.id}`;
         const homeId = resolveClubId(m.homeTeam);
         const awayId = resolveClubId(m.awayTeam);
-        const kickoff = m.utcDate;
         const round = m.matchday || matchday;
 
-        // Verificar se jogo já existe
-        const existing = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
+        // Procurar jogo oficial existente por equipas e jornada (NUNCA criar jogos duplicados)
+        const existing = db.prepare(`
+          SELECT * FROM games 
+          WHERE round = ? AND home_club_id = ? AND away_club_id = ?
+        `).get(round, homeId, awayId);
 
         if (!existing) {
-          // Criar novo jogo
-          db.prepare(`
-            INSERT INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
-            VALUES (?, ?, ?, ?, ?, 'UPCOMING', null, null, null)
-          `).run(gameId, round, homeId, awayId, kickoff);
-          updatedCount++;
+          // Não existe no calendário oficial - ignorar
+          continue;
         }
+
+        const targetGameId = existing.id;
 
         // Se o jogo está a decorrer (IN_PLAY / PAUSED)
         if (m.status === 'IN_PLAY' || m.status === 'PAUSED') {
-          EconomyService.lockGameAtKickoff(gameId);
-          if (m.score && m.score.fullTime) {
+          EconomyService.lockGameAtKickoff(targetGameId);
+          if (m.score && m.score.fullTime && m.score.fullTime.home !== null) {
             db.prepare('UPDATE games SET home_score = ?, away_score = ? WHERE id = ?')
-              .run(m.score.fullTime.home, m.score.fullTime.away, gameId);
+              .run(m.score.fullTime.home, m.score.fullTime.away, targetGameId);
           }
         }
 
@@ -121,22 +120,22 @@ export const FootballApiService = {
         if (m.status === 'FINISHED' && m.score && m.score.fullTime && m.score.fullTime.home !== null) {
           const homeScore = m.score.fullTime.home;
           const awayScore = m.score.fullTime.away;
-          EconomyService.settleGame(gameId, homeScore, awayScore);
+          EconomyService.settleGame(targetGameId, homeScore, awayScore);
           updatedCount++;
         }
       }
 
-      console.log(`✅ Sincronização concluída: ${data.matches.length} jogos processados.`);
+      console.log(`Ã¢Å“â€¦ SincronizaÃƒÂ§ÃƒÂ£o concluÃƒÂ­da: ${data.matches.length} jogos processados.`);
       return { success: true, count: data.matches.length, matches: data.matches };
     } catch (err) {
-      console.error('Erro na sincronização da API de futebol:', err.message);
+      console.error('Erro na sincronizaÃƒÂ§ÃƒÂ£o da API de futebol:', err.message);
       return { success: false, error: err.message };
     }
   },
 
-  // Iniciar sincronização periódica (a cada 30 minutos)
+  // Iniciar sincronizaÃƒÂ§ÃƒÂ£o periÃƒÂ³dica (a cada 30 minutos)
   startAutoSync(intervalMinutes = 30) {
-    console.log(`🤖 Robô de futebol automático ativado (intervalo: ${intervalMinutes}m)`);
+    console.log(`Ã°Å¸Â¤â€“ RobÃƒÂ´ de futebol automÃƒÂ¡tico ativado (intervalo: ${intervalMinutes}m)`);
     // Sincroniza logo ao arrancar
     this.syncMatchday(6);
 
