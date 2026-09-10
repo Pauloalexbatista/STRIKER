@@ -1,15 +1,15 @@
-﻿import express from 'express';
+import express from 'express';
 import { db } from '../db/database.js';
 import { EconomyService } from '../services/economyService.js';
 import { FootballApiService } from '../services/footballApiService.js';
 
 export const router = express.Router();
 
-// 1. Auth: Login ou Registo Rápido
+// 1. Auth: Login ou Registo RÃƒÂ¡pido
 router.post('/auth/login', (req, res) => {
   const { name, pin, favoriteClub } = req.body;
   if (!name || !pin) {
-    return res.status(400).json({ error: 'Nome e PIN são obrigatórios' });
+    return res.status(400).json({ error: 'Nome e PIN sÃƒÂ£o obrigatÃƒÂ³rios' });
   }
 
   const cleanName = name.trim();
@@ -25,11 +25,11 @@ router.post('/auth/login', (req, res) => {
   }
 
   const clubAvatars = {
-    SCP: '🦁', SLB: '🦅', FCP: '🐉', SCB: '⚔️', VSC: '🛡️', GOLD: '⚡'
+    SCP: 'Ã°Å¸Â¦Â', SLB: 'Ã°Å¸Â¦â€¦', FCP: 'Ã°Å¸Ââ€°', SCB: 'Ã¢Å¡â€Ã¯Â¸Â', VSC: 'Ã°Å¸â€ºÂ¡Ã¯Â¸Â', GOLD: 'Ã¢Å¡Â¡'
   };
 
   const club = favoriteClub || 'SCP';
-  const avatar = clubAvatars[club] || '⚽';
+  const avatar = clubAvatars[club] || 'Ã¢Å¡Â½';
   const id = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
   const now = new Date().toISOString();
 
@@ -42,28 +42,28 @@ router.post('/auth/login', (req, res) => {
   res.json({ user: newUser, isNew: true });
 });
 
-// 2. LIGAS: Criar Campeonato (Máximo 3 por utilizador)
+// 2. LIGAS: Criar Campeonato (MÃƒÂ¡ximo 3 por utilizador)
 router.post('/leagues/create', (req, res) => {
   const { userId, name, code } = req.body;
   if (!userId || !name || !code) {
-    return res.status(400).json({ error: 'Nome da liga e código de convite são obrigatórios' });
+    return res.status(400).json({ error: 'Nome da liga e cÃƒÂ³digo de convite sÃƒÂ£o obrigatÃƒÂ³rios' });
   }
 
   // Verificar limite de 3 ligas criadas
   const createdCount = db.prepare('SELECT COUNT(*) as count FROM leagues WHERE creator_id = ?').get(userId).count;
   if (createdCount >= 3) {
-    return res.status(400).json({ error: 'Já atingiste o limite máximo de 3 campeonatos criados!' });
+    return res.status(400).json({ error: 'JÃƒÂ¡ atingiste o limite mÃƒÂ¡ximo de 3 campeonatos criados!' });
   }
 
   const cleanCode = code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
   if (cleanCode.length < 3) {
-    return res.status(400).json({ error: 'O código de convite deve ter pelo menos 3 caracteres' });
+    return res.status(400).json({ error: 'O cÃƒÂ³digo de convite deve ter pelo menos 3 caracteres' });
   }
 
-  // Verificar se o código já existe
+  // Verificar se o cÃƒÂ³digo jÃƒÂ¡ existe
   const existingCode = db.prepare('SELECT * FROM leagues WHERE code = ?').get(cleanCode);
   if (existingCode) {
-    return res.status(400).json({ error: 'Este código de convite já está a ser usado. Escolhe outro!' });
+    return res.status(400).json({ error: 'Este cÃƒÂ³digo de convite jÃƒÂ¡ estÃƒÂ¡ a ser usado. Escolhe outro!' });
   }
 
   const leagueId = 'l_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5);
@@ -74,7 +74,7 @@ router.post('/leagues/create', (req, res) => {
     VALUES (?, ?, ?, ?, ?)
   `).run(leagueId, name.trim(), cleanCode, userId, now);
 
-  // Adicionar o criador como 1º membro da liga com 0.00 pts
+  // Adicionar o criador como 1Ã‚Âº membro da liga com 0.00 pts
   db.prepare(`
     INSERT INTO league_members (league_id, user_id, balance, joined_at)
     VALUES (?, ?, 0.00, ?)
@@ -84,17 +84,17 @@ router.post('/leagues/create', (req, res) => {
   res.json({ success: true, league });
 });
 
-// 3. LIGAS: Entrar numa Liga por Código de Convite
+// 3. LIGAS: Entrar numa Liga por CÃƒÂ³digo de Convite
 router.post('/leagues/join', (req, res) => {
   const { userId, code } = req.body;
   if (!userId || !code) {
-    return res.status(400).json({ error: 'Código de convite obrigatório' });
+    return res.status(400).json({ error: 'CÃƒÂ³digo de convite obrigatÃƒÂ³rio' });
   }
 
   const cleanCode = code.trim().toUpperCase();
   const league = db.prepare('SELECT * FROM leagues WHERE code = ?').get(cleanCode);
   if (!league) {
-    return res.status(404).json({ error: 'Campeonato não encontrado com esse código de convite!' });
+    return res.status(404).json({ error: 'Campeonato nÃƒÂ£o encontrado com esse cÃƒÂ³digo de convite!' });
   }
 
   const isMember = db.prepare('SELECT * FROM league_members WHERE league_id = ? AND user_id = ?').get(league.id, userId);
@@ -131,7 +131,7 @@ router.get('/leagues/my', (req, res) => {
   res.json({ leagues, createdCount, maxAllowed: 3 });
 });
 
-// 5. Obter jogos da jornada (adaptados à liga ativa)
+// 5. Obter jogos da jornada (adaptados ÃƒÂ  liga ativa)
 router.get('/games', (req, res) => {
   const round = req.query.round ? parseInt(req.query.round) : 6;
   const userId = req.query.userId || '';
@@ -163,11 +163,11 @@ router.post('/predictions', (req, res) => {
   }
 
   const game = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
-  if (!game) return res.status(404).json({ error: 'Jogo não encontrado' });
+  if (!game) return res.status(404).json({ error: 'Jogo nÃƒÂ£o encontrado' });
 
   // Bloqueio rigoroso ao apito inicial
   if (game.status !== 'UPCOMING' || new Date(game.kickoff_time) <= new Date()) {
-    return res.status(400).json({ error: 'O jogo já iniciou! As apostas fecharam ao apito inicial.' });
+    return res.status(400).json({ error: 'O jogo jÃƒÂ¡ iniciou! As apostas fecharam ao apito inicial.' });
   }
 
   const now = new Date().toISOString();
@@ -187,7 +187,7 @@ router.post('/predictions', (req, res) => {
   res.json({ success: true, prediction: pred });
 });
 
-// 7. Relatório das 3 colunas (filtrado pela liga ativa)
+// 7. RelatÃƒÂ³rio das 3 colunas (filtrado pela liga ativa)
 router.get('/games/:id/report', (req, res) => {
   const gameId = req.params.id;
   const leagueId = req.query.leagueId;
@@ -202,7 +202,7 @@ router.get('/games/:id/report', (req, res) => {
     WHERE g.id = ?
   `).get(gameId);
 
-  if (!game) return res.status(404).json({ error: 'Jogo não encontrado' });
+  if (!game) return res.status(404).json({ error: 'Jogo nÃƒÂ£o encontrado' });
 
   // Buscar apenas palpites dos membros desta liga
   const bets = db.prepare(`
@@ -294,9 +294,9 @@ router.get('/leaderboard/general', (req, res) => {
 // 9. Atualizar clube
 router.post('/users/update-club', (req, res) => {
   const { userId, clubId } = req.body;
-  if (!userId || !clubId) return res.status(400).json({ error: 'Parâmetros em falta' });
-  const clubAvatars = { SCP: '🦁', SLB: '🦅', FCP: '🐉', SCB: '⚔️', VSC: '🛡️', GOLD: '⚡' };
-  const avatar = clubAvatars[clubId] || '⚽';
+  if (!userId || !clubId) return res.status(400).json({ error: 'ParÃƒÂ¢metros em falta' });
+  const clubAvatars = { SCP: 'Ã°Å¸Â¦Â', SLB: 'Ã°Å¸Â¦â€¦', FCP: 'Ã°Å¸Ââ€°', SCB: 'Ã¢Å¡â€Ã¯Â¸Â', VSC: 'Ã°Å¸â€ºÂ¡Ã¯Â¸Â', GOLD: 'Ã¢Å¡Â¡' };
+  const avatar = clubAvatars[clubId] || 'Ã¢Å¡Â½';
   db.prepare('UPDATE users SET favorite_club = ?, avatar = ? WHERE id = ?').run(clubId, avatar, userId);
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   res.json(user);
