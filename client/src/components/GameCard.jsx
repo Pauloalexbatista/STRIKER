@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Clock, Lock, CheckCircle2, BarChart3 } from 'lucide-react';
 import { useTheme, hexToRgba } from '../contexts/ThemeContext';
-import { placeBet, fetchGameBets } from '../services/api';
+import { submitPrediction, fetchGameReport } from '../services/api';
 
 export function GameCard({ game, activeLeague, onOpenReport }) {
-  const { activeTheme } = useTheme();
+  const { activeTheme, currentUser } = useTheme();
   const [userChoice, setUserChoice] = useState(null);
   const [totalBets, setTotalBets] = useState(0);
   const [timeLeft, setTimeLeft] = useState('');
@@ -43,11 +43,17 @@ export function GameCard({ game, activeLeague, onOpenReport }) {
     return () => clearInterval(interval);
   }, [updateStatus]);
 
+  // Initialize userChoice from game data (already fetched by parent)
+  useEffect(() => {
+    const map = { HOME: 'HOME', DRAW: 'DRAW', AWAY: 'AWAY' };
+    setUserChoice(game.user_prediction ? map[game.user_prediction] || game.user_prediction : null);
+  }, [game.user_prediction]);
+
+  // Fetch total bets count for this game in this league
   useEffect(() => {
     if (!activeLeague) return;
-    fetchGameBets(game.id, activeLeague.id).then(data => {
+    fetchGameReport(game.id, activeLeague.id).then(data => {
       setTotalBets(data.totalBets ?? 0);
-      setUserChoice(data.userChoice ?? null);
     }).catch(() => {});
   }, [game.id, activeLeague?.id]);
 
@@ -56,10 +62,10 @@ export function GameCard({ game, activeLeague, onOpenReport }) {
     const prev = userChoice;
     setUserChoice(choice);
     try {
-      await placeBet({ gameId: game.id, leagueId: activeLeague.id, prediction: choice });
-      const data = await fetchGameBets(game.id, activeLeague.id);
+      await submitPrediction(currentUser.id, game.id, choice, activeLeague.id);
+      const data = await fetchGameReport(game.id, activeLeague.id);
       setTotalBets(data.totalBets ?? 0);
-      setUserChoice(data.userChoice ?? choice);
+      // userChoice already set optimistically above
     } catch {
       setUserChoice(prev);
     }
