@@ -124,7 +124,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
             <button
               type="button"
               onClick={() => {
-                const text = `\u{26BD} Junta-te \u{00E0} minha Liga '${activeLeague.name}' no STRIKER!\n\u{1F3C6} C\u{00F3digo: ${activeLeague.code}\n\u{1F4F1} Entra aqui: https://striker.testeweb.site?liga=${activeLeague.code}`;
+                const text = 'Junta-te a minha Liga ' + activeLeague.name + ' no STRIKER!\nCodigo: ' + activeLeague.code + '\nEntra aqui: https://striker.testeweb.site?liga=' + activeLeague.code;
                 const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
                 window.open(whatsappUrl, '_blank');
               }}
