@@ -4,9 +4,9 @@ import { fetchGames } from '../services/api';
 import { useTheme, hexToRgba } from '../contexts/ThemeContext';
 import { ChevronLeft, ChevronRight, Calendar, RotateCw, Plus, Trophy } from 'lucide-react';
 
-export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal, onOpenLeaderboard }) {
+export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) {
   const { currentUser, activeTheme } = useTheme();
-  const [round, setRound] = useState(6); // Matchday 3 (actual real matchday from API)
+  const [round, setRound] = useState(6);
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,7 +26,7 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal, on
     loadGames(false);
   }, [round, currentUser?.id, activeLeague?.id]);
 
-  // AtualizaÃ§Ã£o silenciosa: o ecrÃ£ NÃƒO salta para o topo quando o utilizador aposta
+  // Atualização silenciosa: o ecrã NÃO salta para o topo quando o utilizador aposta
   const handlePredictionUpdated = () => {
     loadGames(true);
   };
@@ -42,7 +42,7 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal, on
             Nenhum Campeonato Ativo
           </h3>
           <p className="text-xs text-slate-300">
-            Para comeÃ§ares a apostar e veres os potes, cria o teu primeiro campeonato ou entra com um cÃ³digo de convite!
+            Para começares a apostar e veres os potes, cria o teu primeiro campeonato ou entra com um código de convite!
           </p>
           <button
             type="button"
@@ -52,14 +52,6 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal, on
             <Plus size={14} /> Criar ou Entrar numa Liga
           </button>
         </div>
-      )}
-
-      {/* Faixa Rolante de Classificações (Ticker) */}
-      {activeLeague && (
-        <RankingTicker 
-          activeLeague={activeLeague} 
-          onOpenLeaderboard={onOpenLeaderboard} 
-        />
       )}
 
       {/* Jornada Selector & Controls */}
@@ -84,7 +76,7 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal, on
 
         <div className="flex items-center gap-1">
           <button
-            onClick={loadGames}
+            onClick={() => loadGames(false)}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white active:scale-90 transition-all cursor-pointer"
             title="Atualizar Jogos"
           >
