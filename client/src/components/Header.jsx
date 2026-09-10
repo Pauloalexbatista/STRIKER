@@ -6,11 +6,9 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
   const { currentUser, activeTheme, changeFavoriteClub, logout } = useTheme();
   const [showClubModal, setShowClubModal] = useState(false);
 
-  const balance = activeLeague ? Number(activeLeague.user_balance || 0).toFixed(2) : '0.00';
-  const isPositive = Number(balance) > 0;
-  const isNegative = Number(balance) < 0;
-  const rawAvatar = currentUser?.avatar || '';
-  const cleanAvatar = (rawAvatar && !rawAvatar.includes('Ãƒ') && !rawAvatar.includes('Ã°') && rawAvatar.length <= 4) ? rawAvatar : (activeTheme?.badge || '\u{1F981}');
+  const pointsInt = Math.round(Number(activeLeague?.user_balance || 0));
+  const isPositive = pointsInt > 0;
+  const isNegative = pointsInt < 0;
 
   return (
     <header className="sticky top-0 z-40 bg-[#06070b]/95 backdrop-blur-md border-b border-slate-800/80 px-4 py-2.5 shadow-lg safe-top">
