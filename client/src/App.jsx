@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { ThemeProvider, useTheme, hexToRgba } from './contexts/ThemeContext';
 import { Header } from './components/Header';
 import { TimelineFeed } from './components/TimelineFeed';
 import { ThreeColumnDrawer } from './components/ThreeColumnDrawer';
@@ -78,7 +78,7 @@ function StrikerApp() {
         </div>
       </div>
 
-      <main className="flex-1 pb-8">
+      <main className="flex-1 pb-24">
         <TimelineFeed
           key={feedKey}
           activeLeague={activeLeague}
@@ -121,6 +121,28 @@ function StrikerApp() {
         onClose={() => setShowRules(false)}
       />
 
+      {/* Footer Fixo de Publicidade: Patrocínio da jornada */}
+      <footer className="fixed bottom-0 left-0 right-0 z-30 bg-[#06070b]/95 backdrop-blur-md border-t border-slate-800/80 px-3 py-2 safe-bottom shadow-[0_-4px_25px_rgba(0,0,0,0.6)]">
+        <div className="max-w-md mx-auto">
+          <div className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-1 flex items-center justify-between">
+            <span>Patroc&iacute;nio da jornada:</span>
+            <span className="text-[8px] font-mono" style={{ color: activeTheme?.primary || '#ffd700' }}>OFICIAL</span>
+          </div>
+          <div 
+            className="h-10 rounded-xl border border-dashed flex items-center justify-center transition-all px-3 cursor-pointer select-none"
+            style={{ 
+              borderColor: `${hexToRgba(activeTheme?.primary, 0.4)}`, 
+              backgroundColor: `${hexToRgba(activeTheme?.primary, 0.05)}`,
+              color: activeTheme?.primary || '#ffd700'
+            }}
+          >
+            <span className="text-[11px] font-orbitron font-bold opacity-80 tracking-wider truncate">
+              Espa&ccedil;o Reservado para Patrocinador Oficial
+            </span>
+          </div>
+        </div>
+      </footer>
+
       <LoginModal
         isOpen={!currentUser}
         onLoginSuccess={(user) => {
@@ -151,7 +173,7 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-[#06070b] text-white p-6 flex flex-col items-center justify-center text-center">
-          <div className="text-4xl mb-3">Ã¢Å¡Â½</div>
+          <div className="text-4xl mb-3">ÃƒÂ¢Ã…Â¡Ã‚Â½</div>
           <h2 className="text-base font-bold font-orbitron text-amber-400 mb-2">A carregar o STRIKER...</h2>
           <p className="text-xs text-slate-400 mb-4 font-mono max-w-xs">{this.state.error?.message || 'A reiniciar interface'}</p>
           <button

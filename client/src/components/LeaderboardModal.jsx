@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { fetchRoundLeaderboard, fetchGeneralLeaderboard } from '../services/api';
 import { Trophy, Medal, Award, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTheme, hexToRgba } from '../contexts/ThemeContext';
 
 export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
+  const { activeTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('general');
   const [round, setRound] = useState(6);
   const [roundData, setRoundData] = useState([]);
@@ -49,7 +51,7 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
           <div>
             <div className="flex items-center gap-2">
               <Trophy size={18} className="text-amber-400" />
-              <h2 className="text-base font-bold text-white font-orbitron">ClassificaÃ§Ãµes</h2>
+              <h2 className="text-base font-bold text-white font-orbitron">ClassificaÃƒÂ§ÃƒÂµes</h2>
             </div>
             <p className="text-[11px] text-amber-300 font-medium mt-0.5">
               Liga: {activeLeague ? activeLeague.name : 'Geral'}
@@ -111,6 +113,26 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
           </div>
         )}
 
+        {/* Banner de Patrocínio dinâmico: Campeonato ou Jornada */}
+        <div className="px-3 pt-2.5 pb-1">
+          <div className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-1 flex items-center justify-between">
+            <span>{activeTab === 'general' ? 'Patroc&iacute;nio do campeonato:' : 'Patroc&iacute;nio da jornada:'}</span>
+            <span className="text-[8px] font-mono" style={{ color: activeTheme?.primary || '#ffd700' }}>OFICIAL</span>
+          </div>
+          <div 
+            className="h-9 rounded-xl border border-dashed flex items-center justify-center transition-all px-3"
+            style={{ 
+              borderColor: `${hexToRgba(activeTheme?.primary, 0.35)}`, 
+              backgroundColor: `${hexToRgba(activeTheme?.primary, 0.05)}`,
+              color: activeTheme?.primary || '#ffd700'
+            }}
+          >
+            <span className="text-[10px] font-orbitron font-bold opacity-80 tracking-wider truncate">
+              Espa&ccedil;o Reservado para Patrocinador Oficial
+            </span>
+          </div>
+        </div>
+
         {/* Content List */}
         <div className="p-3 overflow-y-auto flex-1 space-y-2">
           {loading ? (
@@ -139,10 +161,10 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-6 text-center font-orbitron text-xs font-black">
-                        {idx === 0 ? 'ðŸ¥‡' : idx === 1 ? 'ðŸ¥ˆ' : idx === 2 ? 'ðŸ¥‰' : `#${idx + 1}`}
+                        {idx === 0 ? 'Ã°Å¸Â¥â€¡' : idx === 1 ? 'Ã°Å¸Â¥Ë†' : idx === 2 ? 'Ã°Å¸Â¥â€°' : `#${idx + 1}`}
                       </div>
 
-                      <span className="text-xl">{(user.avatar && !user.avatar.includes('Ã') && !user.avatar.includes('ð') && user.avatar.length <= 4) ? user.avatar : '\u{1F981}'}</span>
+                      <span className="text-xl">{(user.avatar && !user.avatar.includes('Ãƒ') && !user.avatar.includes('Ã°') && user.avatar.length <= 4) ? user.avatar : '\u{1F981}'}</span>
 
                       <div>
                         <div className="text-xs font-bold text-white flex items-center gap-1.5">
@@ -152,9 +174,9 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
                           </span>
                         </div>
                         <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
-                          <span>{user.wins || 0} vitÃ³rias</span>
-                          <span>â€¢</span>
-                          <span className="text-cyan-400">{user.efficiency_pct || 0}% eficÃ¡cia</span>
+                          <span>{user.wins || 0} vitÃƒÂ³rias</span>
+                          <span>Ã¢â‚¬Â¢</span>
+                          <span className="text-cyan-400">{user.efficiency_pct || 0}% eficÃƒÂ¡cia</span>
                         </div>
                       </div>
                     </div>
@@ -173,7 +195,7 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
             )
           ) : (
             roundData.length === 0 ? (
-              <div className="py-8 text-center text-slate-500 text-xs">Sem jogos concluÃ­dos nesta jornada.</div>
+              <div className="py-8 text-center text-slate-500 text-xs">Sem jogos concluÃƒÂ­dos nesta jornada.</div>
             ) : (
               roundData.map((item, idx) => {
                 const pts = Number(item.round_points || 0);
@@ -184,9 +206,9 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-6 text-center font-orbitron text-xs font-bold text-slate-400">
-                        {idx === 0 ? 'ðŸ‘‘' : `#${idx + 1}`}
+                        {idx === 0 ? 'Ã°Å¸â€˜â€˜' : `#${idx + 1}`}
                       </div>
-                      <span className="text-xl">{(item.avatar && !item.avatar.includes('Ã') && !item.avatar.includes('ð') && item.avatar.length <= 4) ? item.avatar : '\u{1F981}'}</span>
+                      <span className="text-xl">{(item.avatar && !item.avatar.includes('Ãƒ') && !item.avatar.includes('Ã°') && item.avatar.length <= 4) ? item.avatar : '\u{1F981}'}</span>
                       <div>
                         <div className="text-xs font-bold text-white">{item.name}</div>
                         <div className="text-[10px] text-slate-400">{item.round_wins || 0} acertos</div>

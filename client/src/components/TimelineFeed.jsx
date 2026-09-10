@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { GameCard } from './GameCard';
 import { fetchGames } from '../services/api';
 import { useTheme, hexToRgba } from '../contexts/ThemeContext';
@@ -10,24 +10,25 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) 
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const loadGames = async () => {
+  const loadGames = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await fetchGames(round, currentUser?.id || '', activeLeague?.id || '');
       setGames(data);
     } catch (err) {
       console.error('Error fetching games:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadGames();
+    loadGames(false);
   }, [round, currentUser?.id, activeLeague?.id]);
 
+  // Atualização silenciosa: o ecrã NÃO salta para o topo quando o utilizador aposta
   const handlePredictionUpdated = () => {
-    loadGames();
+    loadGames(true);
   };
 
   return (
