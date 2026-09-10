@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme, CLUB_THEMES, hexToRgba } from '../contexts/ThemeContext';
-import { Trophy, Shield, LogOut, Check, ChevronDown, Plus, Share2, HelpCircle } from 'lucide-react';
+import { Trophy, Shield, LogOut, Check, ChevronDown, Share2, HelpCircle } from 'lucide-react';
 
 export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onOpenRules }) {
   const { currentUser, activeTheme, changeFavoriteClub, logout } = useTheme();
@@ -11,18 +11,18 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
   const isNegative = Number(balance) < 0;
 
   return (
-    <header className="sticky top-0 z-30 bg-[#06070b]/95 backdrop-blur-md border-b border-slate-800/80 safe-top px-3 py-2.5">
+    <header className="sticky top-0 z-40 bg-[#06070b]/95 backdrop-blur-md border-b border-slate-800/80 px-4 py-2.5 shadow-lg safe-top">
       <div className="max-w-md mx-auto space-y-2">
         
-        {/* Top Row: Brand, User, Club and Actions */}
+        {/* Top Row: Brand + Club Theme Selector + Saldo + Actions */}
         <div className="flex items-center justify-between">
           
-          {/* Brand & Club Badge */}
-          <div className="flex items-center gap-2">
-            <button 
+          {/* Logo & User Greeting */}
+          <div className="flex items-center gap-2.5">
+            <button
               type="button"
               onClick={() => setShowClubModal(true)}
-              className="w-9 h-9 rounded-xl bg-slate-900 border flex items-center justify-center text-lg active:scale-95 transition-all shadow-lg cursor-pointer"
+              className="w-9 h-9 rounded-xl border flex items-center justify-center text-lg active:scale-95 transition-all shadow-inner bg-slate-900/90 cursor-pointer"
               style={{ borderColor: activeTheme.primary, boxShadow: `0 0 10px ${activeTheme.glow}` }}
               title="Mudar cores do teu clube"
             >
@@ -38,17 +38,17 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
                 </span>
               </div>
               <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                <span>OlÃ¡,</span>
+                <span>Ol&aacute;,</span>
                 <span className="text-white font-bold">{currentUser?.name || 'Visitante'}</span>
               </div>
             </div>
           </div>
 
-          {/* Right Actions: Balance, Trophy & Logout */}
+          {/* Right Actions: Balance, Trophy, Rules & Logout */}
           <div className="flex items-center gap-1.5">
             {/* Balance Pill */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 shadow-inner">
-              <span className="text-xs">{currentUser?.avatar || 'âš½'}</span>
+              <span className="text-xs">{currentUser?.avatar || '\u{1F981}'}</span>
               <div className="text-right">
                 <span className="text-[8px] text-slate-400 block -mb-1 leading-tight">SALDO</span>
                 <span className={`text-[11px] font-bold font-orbitron ${
@@ -63,12 +63,12 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
             <button
               type="button"
               onClick={onOpenLeaderboard}
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 active:scale-90 transition-all cursor-pointer" style={{ color: activeTheme.primary }}
-              title="ClassificaÃ§Ãµes & Ranking"
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 active:scale-90 transition-all cursor-pointer"
+              style={{ color: activeTheme.primary }}
+              title="Classifica&ccedil;&otilde;es &amp; Ranking"
             >
               <Trophy size={16} />
             </button>
-
 
             {/* Rules ? */}
             <button
@@ -80,6 +80,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
             >
               <HelpCircle size={15} />
             </button>
+
             {/* Logout */}
             <button
               type="button"
@@ -100,7 +101,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
             className="flex-1 py-1.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-400/50 flex items-center justify-between transition-all group active:scale-99 shadow-sm cursor-pointer"
           >
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs">ðŸ†</span>
+              <Trophy size={14} className="text-amber-400 shrink-0" />
               <div className="text-left truncate">
                 <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block -mb-0.5">Campeonato Ativo</span>
                 <span className="text-xs font-bold truncate font-orbitron transition-colors duration-300" style={{ color: activeTheme.primary }}>
@@ -123,12 +124,12 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
             <button
               type="button"
               onClick={() => {
-                const text = `âš½ Junta-te Ã  minha Liga '${activeLeague.name}' no STRIKER!\nðŸ”‘ CÃ³digo: ${activeLeague.code}\nðŸ‘‰ Entra aqui: https://striker.testeweb.site?liga=${activeLeague.code}`;
+                const text = `\u{26BD} Junta-te \u{00E0} minha Liga '${activeLeague.name}' no STRIKER!\n\u{1F3C6} C\u{00F3digo: ${activeLeague.code}\n\u{1F4F1} Entra aqui: https://striker.testeweb.site?liga=${activeLeague.code}`;
                 const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
                 window.open(whatsappUrl, '_blank');
               }}
               className="py-1.5 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shrink-0 shadow-sm"
-              title="Convidar Amigos e FamÃ­lia via WhatsApp"
+              title="Convidar Amigos e Fam\u{00ED}lia via WhatsApp"
             >
               <Share2 size={13} />
               <span>Convidar</span>
@@ -157,12 +158,12 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
                 onClick={() => setShowClubModal(false)}
                 className="text-xs text-slate-400 hover:text-white px-2 py-1"
               >
-                âœ•
+                &times;
               </button>
             </div>
             
             <p className="text-xs text-slate-400 mt-2 mb-4">
-              Escolhe o teu clube para personalizar as cores nÃ©on de toda a aplicaÃ§Ã£o:
+              Escolhe o teu clube para personalizar as cores n&eacute;on de toda a aplica&ccedil;&atilde;o:
             </p>
 
             <div className="grid grid-cols-2 gap-2.5">

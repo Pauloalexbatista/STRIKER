@@ -12,7 +12,7 @@ export const CLUB_THEMES = {
     bgLight: 'rgba(0, 209, 102, 0.15)',
     glow: 'rgba(0, 209, 102, 0.5)',
     textColor: 'text-emerald-400',
-    badge: '🦁'
+    badge: '\u{1F981}'
   },
   SLB: {
     name: 'SL Benfica',
@@ -22,7 +22,7 @@ export const CLUB_THEMES = {
     bgLight: 'rgba(255, 46, 77, 0.15)',
     glow: 'rgba(255, 46, 77, 0.5)',
     textColor: 'text-rose-400',
-    badge: '🦅'
+    badge: '\u{1F985}'
   },
   FCP: {
     name: 'FC Porto',
@@ -32,7 +32,7 @@ export const CLUB_THEMES = {
     bgLight: 'rgba(0, 122, 255, 0.15)',
     glow: 'rgba(0, 122, 255, 0.5)',
     textColor: 'text-blue-400',
-    badge: '🐉'
+    badge: '\u{1F409}'
   },
   GOLD: {
     name: 'Striker Gold',
@@ -42,7 +42,7 @@ export const CLUB_THEMES = {
     bgLight: 'rgba(255, 215, 0, 0.15)',
     glow: 'rgba(255, 215, 0, 0.5)',
     textColor: 'text-amber-400',
-    badge: '⚡'
+    badge: '\u{26A1}'
   }
 };
 
@@ -152,6 +152,9 @@ export function ThemeProvider({ children }) {
     try {
       const club = currentUser?.favorite_club || localStorage.getItem('striker_guest_club') || 'SCP';
       applyTheme(club);
+      if (currentUser?.id) {
+        refreshCurrentUser();
+      }
     } catch {
       applyTheme('SCP');
     }
