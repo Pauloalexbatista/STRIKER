@@ -3,14 +3,14 @@ import { useTheme, hexToRgba } from '../contexts/ThemeContext';
 import { Megaphone } from 'lucide-react';
 
 const FUNNY_SPONSORS = [
-  { slogan: 'De inverno ou de ver\u{00E3}o, gelados de alcatr\u{00E3}o!', sponsor: 'Geladaria Asfalto Doce' },
-  { slogan: 'A sua sa\u{00FA}de est\u{00E1} primeiro, beba \u{00E1}gua do chuveiro!', sponsor: 'Termas da Canaliza\u{00E7}\u{00E3}o' },
-  { slogan: 'Se a azia n\u{00E3}o passar, tente o \u{00E1}rbitro culpar!', sponsor: 'Cl\u{00ED}nica do Apito Amigo' },
+  { slogan: 'De inverno ou de verão, gelados de alcatrão!', sponsor: 'Geladaria Asfalto Doce' },
+  { slogan: 'A sua saúde está primeiro, beba água do chuveiro!', sponsor: 'Termas da Canalização' },
+  { slogan: 'Se a azia não passar, tente o árbitro culpar!', sponsor: 'Clínica do Apito Amigo' },
   { slogan: 'Pneu furado na autoestrada? Encha com fita isolada!', sponsor: 'Oficina Desenrasca & Vai' },
-  { slogan: 'Para a vit\u{00F3}ria festejar, tremo\u{00E7}os e jola sem parar!', sponsor: 'Caf\u{00E9} Central do Golo' }
+  { slogan: 'Para a vitória festejar, tremoços e cerveja sem parar!', sponsor: 'Café Central do Golo' }
 ];
 
-export function SponsorBanner({ title = 'Patroc\u{00ED}nio da jornada:', isFooter = false }) {
+export function SponsorBanner({ title = 'Patrocínio da jornada:', isFooter = false }) {
   const { activeTheme } = useTheme();
   const [index, setIndex] = useState(0);
   const [fade, setFade] = useState(true);
@@ -22,7 +22,7 @@ export function SponsorBanner({ title = 'Patroc\u{00ED}nio da jornada:', isFoote
         setIndex((prev) => (prev + 1) % FUNNY_SPONSORS.length);
         setFade(true);
       }, 300);
-    }, 6000);
+    }, 5000);
 
     return () => clearInterval(timer);
   }, []);
@@ -46,8 +46,8 @@ export function SponsorBanner({ title = 'Patroc\u{00ED}nio da jornada:', isFoote
           isFooter ? 'h-11' : 'h-10'
         }`}
         style={{ 
-          borderColor: `${hexToRgba(activeTheme?.primary, 0.4)}`, 
-          backgroundColor: `${hexToRgba(activeTheme?.primary, 0.06)}`,
+          borderColor: `${hexToRgba(activeTheme?.primary, 0.45)}`, 
+          backgroundColor: `${hexToRgba(activeTheme?.primary, 0.07)}`,
           boxShadow: `0 0 12px ${hexToRgba(activeTheme?.primary, 0.1)}`
         }}
       >

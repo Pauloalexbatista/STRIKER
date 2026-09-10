@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchRoundLeaderboard, fetchGeneralLeaderboard } from '../services/api';
 import { Trophy, Medal, Award, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useTheme, hexToRgba } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { SponsorBanner } from './SponsorBanner';
 
 export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
@@ -28,8 +28,8 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
         });
     } else {
       fetchGeneralLeaderboard(activeLeague.id)
-        .then(res => {
-          setGeneralData(res || []);
+        .then(data => {
+          setGeneralData(data || []);
           setLoading(false);
         })
         .catch(err => {
@@ -37,7 +37,7 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
           setLoading(false);
         });
     }
-  }, [isOpen, activeTab, round, activeLeague?.id]);
+  }, [isOpen, activeLeague?.id, activeTab, round]);
 
   if (!isOpen) return null;
 
@@ -52,7 +52,7 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
           <div>
             <div className="flex items-center gap-2">
               <Trophy size={18} className="text-amber-400" />
-              <h2 className="text-base font-bold text-white font-orbitron">ClassificaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes</h2>
+              <h2 className="text-base font-bold text-white font-orbitron">Classificações</h2>
             </div>
             <p className="text-[11px] text-amber-300 font-medium mt-0.5">
               Liga: {activeLeague ? activeLeague.name : 'Geral'}
@@ -61,7 +61,7 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
 
           <button 
             onClick={onClose}
-            className="p-2 rounded-full bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            className="p-2 rounded-full bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -71,7 +71,7 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
         <div className="p-3 bg-slate-950/60 border-b border-slate-800 flex gap-2">
           <button
             onClick={() => setActiveTab('general')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'general'
                 ? 'bg-amber-400/20 border border-amber-400/50 text-amber-300 shadow-md'
                 : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
@@ -81,7 +81,7 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
           </button>
           <button
             onClick={() => setActiveTab('round')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'round'
                 ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 shadow-md'
                 : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
@@ -97,7 +97,7 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
             <button
               disabled={round <= 1}
               onClick={() => setRound(r => Math.max(1, r - 1))}
-              className="p-1 rounded-lg bg-slate-800 text-slate-300 disabled:opacity-30"
+              className="p-1 rounded-lg bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer"
             >
               <ChevronLeft size={16} />
             </button>
@@ -107,31 +107,19 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
             <button
               disabled={round >= 34}
               onClick={() => setRound(r => Math.min(34, r + 1))}
-              className="p-1 rounded-lg bg-slate-800 text-slate-300 disabled:opacity-30"
+              className="p-1 rounded-lg bg-slate-800 text-slate-300 disabled:opacity-30 cursor-pointer"
             >
               <ChevronRight size={16} />
             </button>
           </div>
         )}
 
-        {/* Banner de PatrocÃ­nio dinÃ¢mico: Campeonato ou Jornada */}
+        {/* Banner de Patrocínio dinâmico com frases bem-humoradas */}
         <div className="px-3 pt-2.5 pb-1">
-          <div className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-1 flex items-center justify-between">
-            <span>{activeTab === 'general' ? 'Patroc&iacute;nio do campeonato:' : 'Patroc&iacute;nio da jornada:'}</span>
-            <span className="text-[8px] font-mono" style={{ color: activeTheme?.primary || '#ffd700' }}>OFICIAL</span>
-          </div>
-          <div 
-            className="h-9 rounded-xl border border-dashed flex items-center justify-center transition-all px-3"
-            style={{ 
-              borderColor: `${hexToRgba(activeTheme?.primary, 0.35)}`, 
-              backgroundColor: `${hexToRgba(activeTheme?.primary, 0.05)}`,
-              color: activeTheme?.primary || '#ffd700'
-            }}
-          >
-            <span className="text-[10px] font-orbitron font-bold opacity-80 tracking-wider truncate">
-              Espa&ccedil;o Reservado para Patrocinador Oficial
-            </span>
-          </div>
+          <SponsorBanner 
+            title={activeTab === 'general' ? 'Patrocínio do campeonato:' : 'Patrocínio da jornada:'} 
+            isFooter={false}
+          />
         </div>
 
         {/* Content List */}
@@ -145,8 +133,9 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
               <div className="py-8 text-center text-slate-500 text-xs">Sem dados de ranking para esta liga.</div>
             ) : (
               generalData.map((user, idx) => {
-                const isPos = Number(user.balance) > 0;
-                const isNeg = Number(user.balance) < 0;
+                const pts = Math.round(Number(user.balance || 0));
+                const isPos = pts > 0;
+                const isNeg = pts < 0;
                 return (
                   <div
                     key={user.id}
@@ -162,10 +151,12 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-6 text-center font-orbitron text-xs font-black">
-                        {idx === 0 ? 'ÃƒÂ°Ã…Â¸Ã‚Â¥Ã¢â‚¬Â¡' : idx === 1 ? 'ÃƒÂ°Ã…Â¸Ã‚Â¥Ã‹â€ ' : idx === 2 ? 'ÃƒÂ°Ã…Â¸Ã‚Â¥Ã¢â‚¬Â°' : `#${idx + 1}`}
+                        {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
                       </div>
 
-                      <span className="text-xl">{(user.avatar && !user.avatar.includes('ÃƒÆ’') && !user.avatar.includes('ÃƒÂ°') && user.avatar.length <= 4) ? user.avatar : '\u{1F981}'}</span>
+                      <span className="text-xl">
+                        {(user.avatar && !user.avatar.includes('Ã') && user.avatar.length <= 4) ? user.avatar : '🦁'}
+                      </span>
 
                       <div>
                         <div className="text-xs font-bold text-white flex items-center gap-1.5">
@@ -175,9 +166,9 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
                           </span>
                         </div>
                         <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
-                          <span>{user.wins || 0} vitÃƒÆ’Ã‚Â³rias</span>
-                          <span>ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢</span>
-                          <span className="text-cyan-400">{user.efficiency_pct || 0}% eficÃƒÆ’Ã‚Â¡cia</span>
+                          <span>{user.wins || 0} vitórias</span>
+                          <span>•</span>
+                          <span className="text-cyan-400">{user.efficiency_pct || 0}% eficácia</span>
                         </div>
                       </div>
                     </div>
@@ -186,7 +177,7 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
                       <div className={`text-sm font-bold font-orbitron ${
                         isPos ? 'text-emerald-400' : isNeg ? 'text-rose-400' : 'text-slate-300'
                       }`}>
-                        {isPos ? `+${Number(user.balance).toFixed(2)}` : Number(user.balance).toFixed(2)}
+                        {isPos ? `+${pts}` : pts}
                       </div>
                       <div className="text-[9px] text-slate-500 font-mono">saldo pts</div>
                     </div>
@@ -196,10 +187,10 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
             )
           ) : (
             roundData.length === 0 ? (
-              <div className="py-8 text-center text-slate-500 text-xs">Sem jogos concluÃƒÆ’Ã‚Â­dos nesta jornada.</div>
+              <div className="py-8 text-center text-slate-500 text-xs">Sem jogos concluídos nesta jornada.</div>
             ) : (
               roundData.map((item, idx) => {
-                const pts = Number(item.round_points || 0);
+                const pts = Math.round(Number(item.round_points || 0));
                 return (
                   <div
                     key={item.id}
@@ -207,9 +198,11 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-6 text-center font-orbitron text-xs font-bold text-slate-400">
-                        {idx === 0 ? 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ËœÃ¢â‚¬Ëœ' : `#${idx + 1}`}
+                        {idx === 0 ? '👑' : `#${idx + 1}`}
                       </div>
-                      <span className="text-xl">{(item.avatar && !item.avatar.includes('ÃƒÆ’') && !item.avatar.includes('ÃƒÂ°') && item.avatar.length <= 4) ? item.avatar : '\u{1F981}'}</span>
+                      <span className="text-xl">
+                        {(item.avatar && !item.avatar.includes('Ã') && item.avatar.length <= 4) ? item.avatar : '🦁'}
+                      </span>
                       <div>
                         <div className="text-xs font-bold text-white">{item.name}</div>
                         <div className="text-[10px] text-slate-400">{item.round_wins || 0} acertos</div>
@@ -220,7 +213,7 @@ export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
                       <div className={`text-sm font-bold font-orbitron ${
                         pts > 0 ? 'text-emerald-400' : pts < 0 ? 'text-rose-400' : 'text-slate-400'
                       }`}>
-                        {pts > 0 ? `+${pts.toFixed(2)}` : pts.toFixed(2)}
+                        {pts > 0 ? `+${pts}` : pts}
                       </div>
                       <div className="text-[9px] text-slate-500 font-mono">pts na jornada</div>
                     </div>

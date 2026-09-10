@@ -124,11 +124,11 @@ function StrikerApp() {
         onClose={() => setShowRules(false)}
       />
 
-      {/* Footer Fixo de Publicidade: PatrocÃƒÂ­nio da jornada */}
+      {/* Footer Fixo de Publicidade: Patrocinio da jornada */}
       <footer className="fixed bottom-0 left-0 right-0 z-30 bg-[#06070b]/95 backdrop-blur-md border-t border-slate-800/80 px-3 py-2 safe-bottom shadow-[0_-4px_25px_rgba(0,0,0,0.6)]">
         <div className="max-w-md mx-auto">
           <div className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-1 flex items-center justify-between">
-            <span>Patroc&iacute;nio da jornada:</span>
+            <span>Patrocinio da jornada:</span>
             <span className="text-[8px] font-mono" style={{ color: activeTheme?.primary || '#ffd700' }}>OFICIAL</span>
           </div>
           <div 

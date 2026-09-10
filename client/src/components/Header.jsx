@@ -38,7 +38,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
                 </span>
               </div>
               <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                <span>Ol&aacute;,</span>
+                <span>Olá,</span>
                 <span className="text-white font-bold">{currentUser?.name || 'Visitante'}</span>
               </div>
             </div>
@@ -61,7 +61,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
               onClick={onOpenLeaderboard}
               className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 active:scale-90 transition-all cursor-pointer"
               style={{ color: activeTheme.primary }}
-              title="Classifica&ccedil;&otilde;es &amp; Ranking"
+              title="Classificações & Ranking"
             >
               <Trophy size={16} />
             </button>
@@ -120,12 +120,12 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
             <button
               type="button"
               onClick={() => {
-                const text = 'Junta-te a minha Liga ' + activeLeague.name + ' no STRIKER!\nCodigo: ' + activeLeague.code + '\nEntra aqui: https://striker.testeweb.site?liga=' + activeLeague.code;
-                const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+                const text = 'Junta-te à minha Liga ' + activeLeague.name + ' no STRIKER!\nCódigo: ' + activeLeague.code + '\nEntra aqui: https://striker.testeweb.site?liga=' + activeLeague.code;
+                const whatsappUrl = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(text);
                 window.open(whatsappUrl, '_blank');
               }}
               className="py-1.5 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shrink-0 shadow-sm"
-              title="Convidar Amigos e Fam\u{00ED}lia via WhatsApp"
+              title="Convidar Amigos e Família via WhatsApp"
             >
               <Share2 size={13} />
               <span>Convidar</span>
@@ -159,7 +159,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
             </div>
             
             <p className="text-xs text-slate-400 mt-2 mb-4">
-              Escolhe o teu clube para personalizar as cores n&eacute;on de toda a aplica&ccedil;&atilde;o:
+              Escolhe o teu clube para personalizar as cores néon de toda a aplicação:
             </p>
 
             <div className="grid grid-cols-2 gap-2.5">
