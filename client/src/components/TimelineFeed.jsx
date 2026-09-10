@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { GameCard } from './GameCard';
-import { RankingTicker } from './RankingTicker';
 import { fetchGames } from '../services/api';
 import { useTheme, hexToRgba } from '../contexts/ThemeContext';
 import { ChevronLeft, ChevronRight, Calendar, RotateCw, Plus, Trophy } from 'lucide-react';

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTheme, CLUB_THEMES, hexToRgba } from '../contexts/ThemeContext';
 import { Trophy, Shield, LogOut, Check, ChevronDown, Share2, HelpCircle } from 'lucide-react';
+import { RankingTicker } from './RankingTicker';
 
 export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onOpenRules }) {
   const { currentUser, activeTheme, changeFavoriteClub, logout } = useTheme();
@@ -133,6 +134,15 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
           )}
         </div>
 
+        {/* Row 3: Faixa Rolante TOP Fixa no Header */}
+        {activeLeague && (
+          <div className="pt-0.5">
+            <RankingTicker 
+              activeLeague={activeLeague} 
+              onOpenLeaderboard={onOpenLeaderboard} 
+            />
+          </div>
+        )}
       </div>
 
       {/* Club Theme Selector Modal */}
