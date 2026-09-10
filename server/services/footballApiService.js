@@ -1,4 +1,4 @@
-﻿import { db } from '../db/database.js';
+import { db } from '../db/database.js';
 import { EconomyService } from './economyService.js';
 
 const API_KEY = process.env.FOOTBALL_DATA_KEY || '18e25bca121b4b829177e56f8a02d44d';
@@ -138,10 +138,10 @@ export const FootballApiService = {
   startAutoSync(intervalMinutes = 30) {
     console.log(`🤖 Robô de futebol automático ativado (intervalo: ${intervalMinutes}m)`);
     // Sincroniza logo ao arrancar
-    this.syncMatchday(3);
+    this.syncMatchday(6);
 
     setInterval(() => {
-      this.syncMatchday(3);
+      this.syncMatchday(6);
     }, intervalMinutes * 60 * 1000);
   }
 };

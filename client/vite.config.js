@@ -13,6 +13,8 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
+        // NUNCA fazer cache de index.html ou endpoints da API
+        navigateFallback: null,
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
