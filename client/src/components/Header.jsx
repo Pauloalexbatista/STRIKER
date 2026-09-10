@@ -9,6 +9,8 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
   const balance = activeLeague ? Number(activeLeague.user_balance || 0).toFixed(2) : '0.00';
   const isPositive = Number(balance) > 0;
   const isNegative = Number(balance) < 0;
+  const rawAvatar = currentUser?.avatar || '';
+  const cleanAvatar = (rawAvatar && !rawAvatar.includes('Ã') && !rawAvatar.includes('ð') && rawAvatar.length <= 4) ? rawAvatar : (activeTheme?.badge || '\u{1F981}');
 
   return (
     <header className="sticky top-0 z-40 bg-[#06070b]/95 backdrop-blur-md border-b border-slate-800/80 px-4 py-2.5 shadow-lg safe-top">
@@ -48,7 +50,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
           <div className="flex items-center gap-1.5">
             {/* Balance Pill */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 shadow-inner">
-              <span className="text-xs">{currentUser?.avatar || '\u{1F981}'}</span>
+              <span className="text-xs">{cleanAvatar}</span>
               <div className="text-right">
                 <span className="text-[8px] text-slate-400 block -mb-1 leading-tight">SALDO</span>
                 <span className={`text-[11px] font-bold font-orbitron ${

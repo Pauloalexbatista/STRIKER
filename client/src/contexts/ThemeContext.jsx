@@ -61,7 +61,12 @@ export function ThemeProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('striker_user');
-      return saved ? JSON.parse(saved) : null;
+      const user = saved ? JSON.parse(saved) : null;
+      if (user && (typeof user.avatar !== 'string' || user.avatar.includes('Ã') || user.avatar.includes('ð') || user.avatar.length > 4)) {
+        user.avatar = '\u{1F981}';
+        localStorage.setItem('striker_user', JSON.stringify(user));
+      }
+      return user;
     } catch {
       return null;
     }
