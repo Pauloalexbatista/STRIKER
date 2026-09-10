@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { GameCard } from './GameCard';
+import { RankingTicker } from './RankingTicker';
 import { fetchGames } from '../services/api';
 import { useTheme, hexToRgba } from '../contexts/ThemeContext';
 import { ChevronLeft, ChevronRight, Calendar, RotateCw, Plus, Trophy } from 'lucide-react';
 
-export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) {
+export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal, onOpenLeaderboard }) {
   const { currentUser, activeTheme } = useTheme();
   const [round, setRound] = useState(6); // Matchday 3 (actual real matchday from API)
   const [games, setGames] = useState([]);
@@ -26,7 +27,7 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) 
     loadGames(false);
   }, [round, currentUser?.id, activeLeague?.id]);
 
-  // Atualização silenciosa: o ecrã NÃO salta para o topo quando o utilizador aposta
+  // AtualizaÃ§Ã£o silenciosa: o ecrÃ£ NÃƒO salta para o topo quando o utilizador aposta
   const handlePredictionUpdated = () => {
     loadGames(true);
   };
@@ -42,7 +43,7 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) 
             Nenhum Campeonato Ativo
           </h3>
           <p className="text-xs text-slate-300">
-            Para começares a apostar e veres os potes, cria o teu primeiro campeonato ou entra com um código de convite!
+            Para comeÃ§ares a apostar e veres os potes, cria o teu primeiro campeonato ou entra com um cÃ³digo de convite!
           </p>
           <button
             type="button"
@@ -52,6 +53,14 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) 
             <Plus size={14} /> Criar ou Entrar numa Liga
           </button>
         </div>
+      )}
+
+      {/* Faixa Rolante de Classificações (Ticker) */}
+      {activeLeague && (
+        <RankingTicker 
+          activeLeague={activeLeague} 
+          onOpenLeaderboard={onOpenLeaderboard} 
+        />
       )}
 
       {/* Jornada Selector & Controls */}

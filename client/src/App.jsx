@@ -7,6 +7,7 @@ import { LeaderboardModal } from './components/LeaderboardModal';
 import { LoginModal } from './components/LoginModal';
 import { LeagueModal } from './components/LeagueModal';
 import { RulesModal } from './components/RulesModal';
+import { SponsorBanner } from './components/SponsorBanner';
 import { fetchMyLeagues } from './services/api';
 import { Smartphone } from 'lucide-react';
 
@@ -64,6 +65,7 @@ function StrikerApp() {
         onOpenLeaderboard={() => setShowLeaderboard(true)}
         activeLeague={activeLeague}
         onOpenLeagueModal={() => setShowLeagueModal(true)}
+          onOpenLeaderboard={() => setShowLeaderboard(true)}
         onOpenRules={() => setShowRules(true)}
       />
 
@@ -84,6 +86,7 @@ function StrikerApp() {
           activeLeague={activeLeague}
           onOpenReport={(gameId) => setActiveReportGameId(gameId)}
           onOpenLeagueModal={() => setShowLeagueModal(true)}
+          onOpenLeaderboard={() => setShowLeaderboard(true)}
         />
       </main>
 
@@ -121,7 +124,7 @@ function StrikerApp() {
         onClose={() => setShowRules(false)}
       />
 
-      {/* Footer Fixo de Publicidade: Patrocínio da jornada */}
+      {/* Footer Fixo de Publicidade: PatrocÃ­nio da jornada */}
       <footer className="fixed bottom-0 left-0 right-0 z-30 bg-[#06070b]/95 backdrop-blur-md border-t border-slate-800/80 px-3 py-2 safe-bottom shadow-[0_-4px_25px_rgba(0,0,0,0.6)]">
         <div className="max-w-md mx-auto">
           <div className="text-[9px] uppercase tracking-widest font-bold text-slate-400 mb-1 flex items-center justify-between">
@@ -173,7 +176,7 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-[#06070b] text-white p-6 flex flex-col items-center justify-center text-center">
-          <div className="text-4xl mb-3">ÃƒÂ¢Ã…Â¡Ã‚Â½</div>
+          <div className="text-4xl mb-3">ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â½</div>
           <h2 className="text-base font-bold font-orbitron text-amber-400 mb-2">A carregar o STRIKER...</h2>
           <p className="text-xs text-slate-400 mb-4 font-mono max-w-xs">{this.state.error?.message || 'A reiniciar interface'}</p>
           <button
