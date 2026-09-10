@@ -1,8 +1,8 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useTheme, CLUB_THEMES, hexToRgba } from '../contexts/ThemeContext';
-import { Trophy, Shield, LogOut, Check, ChevronDown, Plus, Share2 } from 'lucide-react';
+import { Trophy, Shield, LogOut, Check, ChevronDown, Plus, Share2, HelpCircle } from 'lucide-react';
 
-export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
+export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onOpenRules }) {
   const { currentUser, activeTheme, changeFavoriteClub, logout } = useTheme();
   const [showClubModal, setShowClubModal] = useState(false);
 
@@ -38,7 +38,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
                 </span>
               </div>
               <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                <span>Olá,</span>
+                <span>OlÃ¡,</span>
                 <span className="text-white font-bold">{currentUser?.name || 'Visitante'}</span>
               </div>
             </div>
@@ -48,7 +48,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
           <div className="flex items-center gap-1.5">
             {/* Balance Pill */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 shadow-inner">
-              <span className="text-xs">{currentUser?.avatar || '⚽'}</span>
+              <span className="text-xs">{currentUser?.avatar || 'âš½'}</span>
               <div className="text-right">
                 <span className="text-[8px] text-slate-400 block -mb-1 leading-tight">SALDO</span>
                 <span className={`text-[11px] font-bold font-orbitron ${
@@ -64,11 +64,22 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
               type="button"
               onClick={onOpenLeaderboard}
               className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 active:scale-90 transition-all cursor-pointer" style={{ color: activeTheme.primary }}
-              title="Classificações & Ranking"
+              title="ClassificaÃ§Ãµes & Ranking"
             >
               <Trophy size={16} />
             </button>
 
+
+            {/* Rules ? */}
+            <button
+              type="button"
+              onClick={onOpenRules}
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 active:scale-90 transition-all cursor-pointer"
+              style={{ color: activeTheme?.primary }}
+              title="Regras do Jogo"
+            >
+              <HelpCircle size={15} />
+            </button>
             {/* Logout */}
             <button
               type="button"
@@ -89,7 +100,7 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
             className="flex-1 py-1.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-amber-400/50 flex items-center justify-between transition-all group active:scale-99 shadow-sm cursor-pointer"
           >
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs">🏆</span>
+              <span className="text-xs">ðŸ†</span>
               <div className="text-left truncate">
                 <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block -mb-0.5">Campeonato Ativo</span>
                 <span className="text-xs font-bold truncate font-orbitron transition-colors duration-300" style={{ color: activeTheme.primary }}>
@@ -112,12 +123,12 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
             <button
               type="button"
               onClick={() => {
-                const text = `⚽ Junta-te à minha Liga '${activeLeague.name}' no STRIKER!\n🔑 Código: ${activeLeague.code}\n👉 Entra aqui: https://striker.testeweb.site?liga=${activeLeague.code}`;
+                const text = `âš½ Junta-te Ã  minha Liga '${activeLeague.name}' no STRIKER!\nðŸ”‘ CÃ³digo: ${activeLeague.code}\nðŸ‘‰ Entra aqui: https://striker.testeweb.site?liga=${activeLeague.code}`;
                 const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
                 window.open(whatsappUrl, '_blank');
               }}
               className="py-1.5 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 font-bold text-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer shrink-0 shadow-sm"
-              title="Convidar Amigos e Família via WhatsApp"
+              title="Convidar Amigos e FamÃ­lia via WhatsApp"
             >
               <Share2 size={13} />
               <span>Convidar</span>
@@ -146,12 +157,12 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal }) {
                 onClick={() => setShowClubModal(false)}
                 className="text-xs text-slate-400 hover:text-white px-2 py-1"
               >
-                ✕
+                âœ•
               </button>
             </div>
             
             <p className="text-xs text-slate-400 mt-2 mb-4">
-              Escolhe o teu clube para personalizar as cores néon de toda a aplicação:
+              Escolhe o teu clube para personalizar as cores nÃ©on de toda a aplicaÃ§Ã£o:
             </p>
 
             <div className="grid grid-cols-2 gap-2.5">

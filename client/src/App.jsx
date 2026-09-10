@@ -6,6 +6,7 @@ import { ThreeColumnDrawer } from './components/ThreeColumnDrawer';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { LoginModal } from './components/LoginModal';
 import { LeagueModal } from './components/LeagueModal';
+import { RulesModal } from './components/RulesModal';
 import { fetchMyLeagues } from './services/api';
 import { Smartphone } from 'lucide-react';
 
@@ -14,6 +15,7 @@ function StrikerApp() {
   const [activeReportGameId, setActiveReportGameId] = useState(null);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showLeagueModal, setShowLeagueModal] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   const [leagues, setLeagues] = useState([]);
   const [activeLeague, setActiveLeague] = useState(null);
@@ -62,6 +64,7 @@ function StrikerApp() {
         onOpenLeaderboard={() => setShowLeaderboard(true)}
         activeLeague={activeLeague}
         onOpenLeagueModal={() => setShowLeagueModal(true)}
+        onOpenRules={() => setShowRules(true)}
       />
 
       <div className="max-w-md mx-auto w-full px-3 pt-2.5 flex items-center justify-between text-[11px] text-slate-400">
@@ -113,6 +116,11 @@ function StrikerApp() {
         onRefreshLeagues={loadLeagues}
       />
 
+      <RulesModal
+        isOpen={showRules}
+        onClose={() => setShowRules(false)}
+      />
+
       <LoginModal
         isOpen={!currentUser}
         onLoginSuccess={(user) => {
@@ -143,7 +151,7 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-[#06070b] text-white p-6 flex flex-col items-center justify-center text-center">
-          <div className="text-4xl mb-3">⚽</div>
+          <div className="text-4xl mb-3">Ã¢Å¡Â½</div>
           <h2 className="text-base font-bold font-orbitron text-amber-400 mb-2">A carregar o STRIKER...</h2>
           <p className="text-xs text-slate-400 mb-4 font-mono max-w-xs">{this.state.error?.message || 'A reiniciar interface'}</p>
           <button

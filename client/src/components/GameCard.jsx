@@ -1,97 +1,94 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart3, Clock, Lock, CheckCircle2 } from 'lucide-react';
-import { submitPrediction } from '../services/api';
+import { useState, useEffect, useCallback } from 'react';
+import { Clock, Lock, CheckCircle2, BarChart3 } from 'lucide-react';
 import { useTheme, hexToRgba } from '../contexts/ThemeContext';
+import { placeBet, fetchGameBets } from '../services/api';
 
-export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated }) {
-  const { currentUser, activeTheme } = useTheme();
+export function GameCard({ game, activeLeague, onOpenReport }) {
+  const { activeTheme } = useTheme();
+  const [userChoice, setUserChoice] = useState(null);
+  const [totalBets, setTotalBets] = useState(0);
   const [timeLeft, setTimeLeft] = useState('');
+  const [isLive, setIsLive] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [userChoice, setUserChoice] = useState(game.user_prediction);
 
-  useEffect(() => {
-    setUserChoice(game.user_prediction);
-  }, [game.user_prediction]);
+  const updateStatus = useCallback(() => {
+    const now = Date.now();
+    const kickoff = new Date(game.kickoff_time).getTime();
+    const diff = kickoff - now;
+    const finished = game.status === 'FINISHED';
+    const live = game.status === 'LIVE' || (!finished && diff <= 0);
 
-  useEffect(() => {
-    const updateCountdown = () => {
-      const now = Date.now();
-      const kickoff = new Date(game.kickoff_time).getTime();
-      const diff = kickoff - now;
+    setIsFinished(finished);
+    setIsLive(live);
+    setIsLocked(live || finished);
 
-      if (game.status !== 'UPCOMING' || diff <= 0) {
-        setIsLocked(true);
-        if (game.status === 'LIVE') setTimeLeft('EM DIRECTO');
-        else if (game.status === 'FINISHED') setTimeLeft('TERMINADO');
-        else setTimeLeft('APITO INICIAL');
-        return;
-      }
-
-      setIsLocked(false);
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-      const pad = (n) => String(n).padStart(2, '0');
-      if (hours > 24) {
-        const days = Math.floor(hours / 24);
-        setTimeLeft(`${days}d ${hours % 24}h`);
-      } else {
-        setTimeLeft(`${pad(hours)}:${pad(mins)}:${pad(secs)}`);
-      }
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-    return () => clearInterval(interval);
+    if (finished) {
+      setTimeLeft('TERMINADO');
+    } else if (live) {
+      setTimeLeft('AO VIVO');
+    } else if (diff > 0) {
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      if (d > 0) setTimeLeft(`${d}d ${h}h`);
+      else if (h > 0) setTimeLeft(`${h}h ${m}m`);
+      else setTimeLeft(`${m}m`);
+    }
   }, [game.kickoff_time, game.status]);
 
-  const handleSelectChoice = async (choice) => {
-    if (isLocked || submitting || !currentUser || !activeLeague) return;
+  useEffect(() => {
+    updateStatus();
+    const interval = setInterval(updateStatus, 30000);
+    return () => clearInterval(interval);
+  }, [updateStatus]);
 
+  useEffect(() => {
+    if (!activeLeague) return;
+    fetchGameBets(game.id, activeLeague.id).then(data => {
+      setTotalBets(data.totalBets ?? 0);
+      setUserChoice(data.userChoice ?? null);
+    }).catch(() => {});
+  }, [game.id, activeLeague?.id]);
+
+  const handleSelectChoice = async (choice) => {
+    if (isLocked || !activeLeague) return;
+    const prev = userChoice;
+    setUserChoice(choice);
     try {
-      setSubmitting(true);
-      setUserChoice(choice);
-      await submitPrediction(currentUser.id, game.id, choice, activeLeague.id);
-      if (onPredictionUpdated) onPredictionUpdated();
-    } catch (err) {
-      console.error('Error submitting prediction:', err);
-      setUserChoice(game.user_prediction);
-    } finally {
-      setSubmitting(false);
+      await placeBet({ gameId: game.id, leagueId: activeLeague.id, prediction: choice });
+      const data = await fetchGameBets(game.id, activeLeague.id);
+      setTotalBets(data.totalBets ?? 0);
+      setUserChoice(data.userChoice ?? choice);
+    } catch {
+      setUserChoice(prev);
     }
   };
 
-  const isLive = game.status === 'LIVE';
-  const isFinished = game.status === 'FINISHED';
-  const totalBets = Number(game.league_total_bets) || 0;
-
   return (
-    <div 
-      className="bg-slate-900/60 backdrop-blur-sm border border-slate-800/80 rounded-2xl p-3.5 mb-3 transition-all relative overflow-hidden shadow-lg"
-      style={{
-        borderColor: userChoice ? `${activeTheme.primary}40` : undefined
-      }}
+    <div
+      className="bg-[#0b0e17]/90 border border-slate-800/60 rounded-2xl px-3.5 pt-2.5 pb-3 shadow-lg relative overflow-hidden"
+      style={{ boxShadow: `0 0 0 1px ${hexToRgba(activeTheme?.primary, 0.06)}, 0 4px 24px rgba(0,0,0,0.45)` }}
     >
-      {/* Top Match Info & Countdown */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-slate-800/70">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+      {/* Top Row: Round + Date + Status + Report */}
+      <div className="flex items-center justify-between text-[10px] text-slate-400">
+        <div className="flex items-center gap-2">
+          <span className="bg-slate-800 text-slate-300 font-bold font-orbitron px-1.5 py-0.5 rounded text-[9px]">
             J{game.round}
           </span>
-          <span className="text-[11px] text-slate-400 font-medium">
-            {new Date(game.kickoff_time).toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          <span>
+            {new Date(game.kickoff_time).toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })},{' '}
+            {new Date(game.kickoff_time).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Countdown or Status Badge */}
-          <div style={!isLive && !isFinished ? { backgroundColor: `${hexToRgba(activeTheme?.primary, 0.15)}`, borderColor: `${hexToRgba(activeTheme?.primary, 0.45)}`, color: activeTheme?.primary || "#ffd700" } : {}} className={`px-2 py-0.5 rounded-full text-[11px] font-bold font-orbitron flex items-center gap-1 ${
-            isLive 
-              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse' 
-              : isFinished 
-              ? 'bg-slate-800 text-slate-400 border border-slate-700' 
+          {/* Status badge */}
+          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold font-orbitron text-[9px] ${
+            isLive
+              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse'
+              : isFinished
+              ? 'bg-slate-800 text-slate-400 border border-slate-700'
               : 'text-white border'
           }`}>
             {isLive ? (
@@ -112,21 +109,21 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
             )}
           </div>
 
-          {/* 3-Column Report Button: APENAS DISPONÍVEL QUANDO O JOGO COMEÇA (LIVE ou FINISHED) */}
+          {/* Report button: only LIVE or FINISHED */}
           {(isLive || isFinished) ? (
             <button
               type="button"
               onClick={() => onOpenReport(game.id)}
               className="px-2 py-1 rounded-lg bg-cyan-950/60 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-900/80 active:scale-95 transition-all cursor-pointer flex items-center gap-1 text-[10px] font-bold font-orbitron shadow-[0_0_8px_rgba(6,182,212,0.2)]"
-              title="Ver Apostas das 3 Colunas"
+              title="Ver Apostas"
             >
               <BarChart3 size={13} />
               <span>Ver Palpites</span>
             </button>
           ) : (
-            <div 
+            <div
               className="p-1 rounded-lg bg-slate-800/40 border border-slate-800 text-slate-600 flex items-center gap-1 text-[10px]"
-              title="Apostas secretas até ao apito inicial para não influenciar ninguém"
+              title="Apostas secretas ate ao apito inicial"
             >
               <Lock size={12} />
             </div>
@@ -134,10 +131,8 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
         </div>
       </div>
 
-      {/* Match Teams Display */}
+      {/* Teams */}
       <div className="py-3 flex items-center justify-between px-1">
-        
-        {/* Home Club */}
         <div className="flex-1 text-left">
           <div className="text-sm font-black font-orbitron text-white truncate" title={game.home_name}>
             {game.home_short}
@@ -145,7 +140,6 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
           <span className="text-[10px] text-slate-400 font-medium">Casa</span>
         </div>
 
-        {/* Center: Live / Final Score or VS */}
         <div className="px-3 text-center">
           {isFinished || isLive ? (
             <div className="flex items-center gap-2 bg-slate-900/90 px-3 py-1 rounded-xl border border-slate-700 font-orbitron text-lg font-black text-white shadow-inner">
@@ -160,7 +154,6 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
           )}
         </div>
 
-        {/* Away Club */}
         <div className="flex-1 text-right">
           <div className="text-sm font-black font-orbitron text-white truncate" title={game.away_name}>
             {game.away_short}
@@ -169,12 +162,11 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
         </div>
       </div>
 
-      {/* Direct Prediction Buttons: [ HOME ] [ EMPATE ] [ AWAY ] */}
+      {/* Bet Buttons: 1 / X / 2 only */}
       <div className="grid grid-cols-3 gap-2 pt-1">
-        
         <BetButton
-          label={game.home_short}
-          code="1"
+          label="1"
+          code="HOME"
           isSelected={userChoice === 'HOME'}
           isLocked={isLocked || !activeLeague}
           isCorrect={isFinished && game.result === 'HOME'}
@@ -182,10 +174,9 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
           activeTheme={activeTheme}
           onClick={() => handleSelectChoice('HOME')}
         />
-
         <BetButton
-          label="EMPATE"
-          code="X"
+          label="X"
+          code="DRAW"
           isSelected={userChoice === 'DRAW'}
           isLocked={isLocked || !activeLeague}
           isCorrect={isFinished && game.result === 'DRAW'}
@@ -193,10 +184,9 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
           activeTheme={activeTheme}
           onClick={() => handleSelectChoice('DRAW')}
         />
-
         <BetButton
-          label={game.away_short}
-          code="2"
+          label="2"
+          code="AWAY"
           isSelected={userChoice === 'AWAY'}
           isLocked={isLocked || !activeLeague}
           isCorrect={isFinished && game.result === 'AWAY'}
@@ -204,38 +194,22 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
           activeTheme={activeTheme}
           onClick={() => handleSelectChoice('AWAY')}
         />
-
       </div>
 
-      {/* Card Footer: Prediction summary & secret state */}
+      {/* Footer: only bet count */}
       <div className="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
-        <div className="text-slate-400 flex items-center gap-1 truncate">
-          {userChoice ? (
-            <>
-              <span>Teu palpite:</span>
-              <span className="font-bold" style={{ color: activeTheme.primary }}>
-                {userChoice === 'HOME' ? game.home_short : userChoice === 'AWAY' ? game.away_short : 'EMPATE'}
-              </span>
-            </>
-          ) : (
-            <span className="text-slate-500 italic">Sem aposta registada</span>
-          )}
-        </div>
-
-        {/* Informação do Pote & Segredo */}
-        <div className="flex items-center gap-2 text-[10px] font-mono shrink-0">
+        <div className="text-slate-500 flex items-center gap-1">
           {!isLive && !isFinished && (
-            <span className="text-slate-500 flex items-center gap-0.5 text-[9px] font-sans" title="Ninguém vê os palpites individuais até ao apito inicial">
-              <Lock size={10} className="text-slate-500" />
+            <span className="flex items-center gap-0.5 text-[9px]" title="Ninguem ve os palpites ate ao apito inicial">
+              <Lock size={10} className="text-slate-600" />
               <span>Secretas</span>
             </span>
           )}
-          <div className="text-slate-400">
-            Pote: <span className="font-bold font-orbitron" style={{ color: activeTheme?.primary || "#ffd700" }}>{totalBets}.00 pts</span> <span className="text-slate-500">({totalBets} {totalBets === 1 ? 'aposta' : 'apostas'})</span>
-          </div>
+        </div>
+        <div className="text-slate-500 text-[10px]">
+          {totalBets} {totalBets === 1 ? 'aposta' : 'apostas'}
         </div>
       </div>
-
     </div>
   );
 }
@@ -243,8 +217,8 @@ export function GameCard({ game, activeLeague, onOpenReport, onPredictionUpdated
 function BetButton({ label, code, isSelected, isLocked, isCorrect, isWrong, activeTheme, onClick }) {
   const dynamicStyle = isSelected && !isCorrect && !isWrong ? {
     borderColor: activeTheme?.primary || '#ffd700',
-    boxShadow: `0 0 14px ${activeTheme?.glow || 'rgba(255,215,0,0.4)'}`,
-    backgroundColor: 'rgba(15, 23, 42, 0.95)'
+    boxShadow: `0 0 16px ${activeTheme?.glow || 'rgba(255,215,0,0.4)'}`,
+    backgroundColor: hexToRgba(activeTheme?.primary, 0.12)
   } : {};
 
   return (
@@ -253,29 +227,26 @@ function BetButton({ label, code, isSelected, isLocked, isCorrect, isWrong, acti
       disabled={isLocked}
       onClick={onClick}
       style={dynamicStyle}
-      className={`py-2.5 px-1 rounded-xl border flex flex-col items-center justify-center transition-all relative cursor-pointer ${
-        isCorrect 
-          ? 'bg-emerald-950/50 border-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.35)]' 
+      className={`py-3 px-1 rounded-xl border flex items-center justify-center transition-all relative cursor-pointer ${
+        isCorrect
+          ? 'bg-emerald-950/50 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
           : isWrong
-          ? 'bg-rose-950/30 border-rose-600/60 text-slate-400 line-through'
+          ? 'bg-rose-950/30 border-rose-600/60 text-slate-500 line-through'
           : isSelected
           ? 'text-white'
           : isLocked
-          ? 'bg-slate-900/40 border-slate-800 text-slate-500 cursor-not-allowed'
+          ? 'bg-slate-900/40 border-slate-800 text-slate-600 cursor-not-allowed'
           : 'bg-slate-900/80 hover:bg-slate-800/80 border-slate-700/80 text-slate-200 active:scale-95'
       }`}
     >
-      <span className="text-[10px] font-bold uppercase tracking-wide truncate max-w-full">
+      <span className="text-base font-black font-orbitron tracking-widest">
         {label}
-      </span>
-      <span className="text-[9px] font-mono text-slate-400 font-semibold">
-        ({code})
       </span>
 
       {isSelected && (
-        <span 
-          className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" 
-          style={{ 
+        <span
+          className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
+          style={{
             backgroundColor: activeTheme?.primary || '#ffd700',
             boxShadow: `0 0 6px ${activeTheme?.primary || '#ffd700'}`
           }}
