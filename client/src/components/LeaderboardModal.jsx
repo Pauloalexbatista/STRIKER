@@ -1,10 +1,10 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { fetchRoundLeaderboard, fetchGeneralLeaderboard } from '../services/api';
 import { Trophy, Medal, Award, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export function LeaderboardModal({ isOpen, activeLeague, onClose }) {
   const [activeTab, setActiveTab] = useState('general');
-  const [round, setRound] = useState(3);
+  const [round, setRound] = useState(6);
   const [roundData, setRoundData] = useState([]);
   const [generalData, setGeneralData] = useState([]);
   const [loading, setLoading] = useState(true);

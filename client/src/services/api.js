@@ -1,4 +1,4 @@
-﻿const BASE_URL = '/api';
+const BASE_URL = '/api';
 
 export async function loginUser(name, pin, favoriteClub) {
   const res = await fetch(`${BASE_URL}/auth/login`, {
@@ -63,7 +63,7 @@ export async function updateUserClub(userId, clubId) {
   return res.json();
 }
 
-export async function fetchGames(round = 3, userId = '', leagueId = '') {
+export async function fetchGames(round = 6, userId = '', leagueId = '') {
   const res = await fetch(`${BASE_URL}/games?round=${round}&userId=${userId}&leagueId=${leagueId}`);
   return res.json();
 }
@@ -82,7 +82,7 @@ export async function fetchGameReport(gameId, leagueId = '') {
   return res.json();
 }
 
-export async function fetchRoundLeaderboard(round = 3, leagueId = '') {
+export async function fetchRoundLeaderboard(round = 6, leagueId = '') {
   const res = await fetch(`${BASE_URL}/leaderboard/round/${round}?leagueId=${leagueId}`);
   return res.json();
 }
