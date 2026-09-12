@@ -1,7 +1,7 @@
-﻿import express from 'express';
+import express from 'express';
 import { db } from '../db/database.js';
-import { EconomyService } from './economyService.js';
-import { FootballApiService } from './footballApiService.js';
+import { EconomyService } from '../services/economyService.js';
+import { FootballApiService } from '../services/footballApiService.js';
 
 export const router = express.Router();
 
