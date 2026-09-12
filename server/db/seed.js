@@ -1,4 +1,5 @@
 ﻿import { db } from './database.js';
+import { EconomyService } from '../services/economyService.js';
 
 export function seedData() {
   // 1. Seed Clubs limpos em UTF-8
@@ -54,7 +55,6 @@ export function seedData() {
         cleanName = 'Paulo';
       }
 
-      // Se o avatar tiver caracteres corrompidos estranhos (Ã, ǟ, etc.) ou comprimento anormal
       const needsAvatarFix = !u.avatar || u.avatar.includes('Ã') || u.avatar.includes('ǟ') || u.avatar.length > 4;
       const needsNameFix = cleanName !== u.name;
 
@@ -68,5 +68,24 @@ export function seedData() {
     }
   } catch (err) {
     console.error('Erro na limpeza de avatares:', err);
+  }
+
+  // 3. Recalibrar pontuações de jogos FINISHED para a regra oficial (+3, -1, -2)
+  try {
+    const finishedGames = db.prepare("SELECT id, result FROM games WHERE status = 'FINISHED'").all();
+    for (const fg of finishedGames) {
+      // Vencedores: +3.00
+      db.prepare("UPDATE predictions SET points_won = 3.00, net_points = 3.00 WHERE game_id = ? AND choice = ? AND choice != 'MISSED'").run(fg.id, fg.result);
+      // Perdedores: -1.00
+      db.prepare("UPDATE predictions SET points_won = 0.00, net_points = -1.00 WHERE game_id = ? AND choice != ? AND choice != 'MISSED'").run(fg.id, fg.result);
+      // Faltosos: -2.00
+      db.prepare("UPDATE predictions SET points_won = 0.00, net_points = -2.00 WHERE game_id = ? AND choice = 'MISSED'").run(fg.id);
+    }
+
+    // Recalcular todos os saldos absolutos na BD (reverte 15 e -5 para 3 e -1 imediatamente)
+    EconomyService.recalculateAllBalances();
+    console.log('✅ Saldos de todos os membros recalculados e calibrados com sucesso!');
+  } catch (err) {
+    console.error('Erro no recalculo de saldos:', err);
   }
 }

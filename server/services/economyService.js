@@ -11,12 +11,56 @@ export const EconomyService = {
     return db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
   },
 
-  // Finalizar jogo e processar regras oficiais:
+  // Recalcular saldos de uma liga de forma determinística a partir de previsões + bónus
+  recalculateLeagueBalances(leagueId) {
+    const members = db.prepare('SELECT user_id FROM league_members WHERE league_id = ?').all(leagueId);
+    for (const m of members) {
+      const predSum = db.prepare(`
+        SELECT COALESCE(ROUND(SUM(net_points), 2), 0.00) as total
+        FROM predictions
+        WHERE user_id = ? AND (league_id = ? OR league_id IS NULL)
+      `).get(m.user_id, leagueId).total;
+
+      let bonusSum = 0;
+      try {
+        const row = db.prepare(`
+          SELECT COALESCE(ROUND(SUM(bonus_points), 2), 0.00) as total
+          FROM round_bonuses
+          WHERE user_id = ? AND league_id = ?
+        `).get(m.user_id, leagueId);
+        bonusSum = row ? row.total : 0;
+      } catch (err) {
+        bonusSum = 0;
+      }
+
+      const newBalance = Number((predSum + bonusSum).toFixed(2));
+      db.prepare(`
+        UPDATE league_members 
+        SET balance = ? 
+        WHERE league_id = ? AND user_id = ?
+      `).run(newBalance, leagueId, m.user_id);
+    }
+  },
+
+  // Recalcular saldos de todas as ligas
+  recalculateAllBalances() {
+    const leagues = db.prepare('SELECT id FROM leagues').all();
+    for (const l of leagues) {
+      this.recalculateLeagueBalances(l.id);
+    }
+  },
+
+  // Finalizar jogo e processar regras oficiais (IDEMPOTENTE):
   // Acerto: +3 pts | Erro: -1 pt | Não apostou: -2 pts
   // Jornada fechada: Vencedor(es) da jornada recebem +3 pts extra de bónus!
   settleGame(gameId, homeScore, awayScore) {
     const game = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
     if (!game) return { error: 'Jogo não encontrado' };
+
+    // Se o jogo já estava terminado com este mesmo resultado, não reprocessar!
+    if (game.status === 'FINISHED' && game.home_score === homeScore && game.away_score === awayScore) {
+      return game;
+    }
 
     let result = 'DRAW';
     if (homeScore > awayScore) result = 'HOME';
@@ -31,10 +75,10 @@ export const EconomyService = {
     const allLeagues = db.prepare('SELECT id FROM leagues').all();
     const now = new Date().toISOString();
 
-    // 2. Processar cada liga
+    // 2. Processar previsões em cada liga
     for (const { id: leagueId } of allLeagues) {
       const bets = db.prepare(`
-        SELECT * FROM predictions WHERE game_id = ? AND league_id = ? AND choice != 'MISSED'
+        SELECT * FROM predictions WHERE game_id = ? AND (league_id = ? OR league_id IS NULL) AND choice != 'MISSED'
       `).all(gameId, leagueId);
 
       const winners = bets.filter(b => b.choice === result);
@@ -47,12 +91,6 @@ export const EconomyService = {
           SET points_won = 3.00, net_points = 3.00 
           WHERE id = ?
         `).run(winner.id);
-
-        db.prepare(`
-          UPDATE league_members 
-          SET balance = ROUND(balance + 3.00, 2) 
-          WHERE league_id = ? AND user_id = ?
-        `).run(leagueId, winner.user_id);
       }
 
       // Perdedores da Liga (-1 ponto fixo)
@@ -62,12 +100,6 @@ export const EconomyService = {
           SET points_won = 0.00, net_points = -1.00 
           WHERE id = ?
         `).run(loser.id);
-
-        db.prepare(`
-          UPDATE league_members 
-          SET balance = ROUND(balance - 1.00, 2) 
-          WHERE league_id = ? AND user_id = ?
-        `).run(leagueId, loser.user_id);
       }
 
       // Membros da Liga que NÃO apostaram (-2 pontos por falta de aposta)
@@ -77,7 +109,7 @@ export const EconomyService = {
       for (const member of allMembers) {
         if (!bettorIds.has(member.user_id)) {
           const existingMissed = db.prepare(`
-            SELECT id FROM predictions WHERE game_id = ? AND league_id = ? AND user_id = ?
+            SELECT id FROM predictions WHERE game_id = ? AND (league_id = ? OR league_id IS NULL) AND user_id = ?
           `).get(gameId, leagueId, member.user_id);
 
           if (!existingMissed) {
@@ -86,15 +118,12 @@ export const EconomyService = {
               INSERT INTO predictions (id, user_id, game_id, league_id, choice, created_at, points_won, net_points)
               VALUES (?, ?, ?, ?, 'MISSED', ?, 0.00, -2.00)
             `).run(missedId, member.user_id, gameId, leagueId, now);
-
-            db.prepare(`
-              UPDATE league_members 
-              SET balance = ROUND(balance - 2.00, 2) 
-              WHERE league_id = ? AND user_id = ?
-            `).run(leagueId, member.user_id);
           }
         }
       }
+
+      // Recalcular o saldo real e absoluto de todos os membros desta liga
+      this.recalculateLeagueBalances(leagueId);
     }
 
     // 3. Registar resultado oficial do jogo
@@ -112,13 +141,11 @@ export const EconomyService = {
 
   // Verificar fecho da jornada e atribuir +3 pontos extra ao campeão (ou empatados no 1º lugar)
   checkAndAwardRoundBonus(round) {
-    // Verificar se ainda resta algum jogo não terminado nesta jornada
     const pendingGames = db.prepare(`
       SELECT COUNT(*) as count FROM games WHERE round = ? AND status != 'FINISHED'
     `).get(round).count;
 
     if (pendingGames > 0) {
-      // Ainda há jogos por terminar na jornada
       return;
     }
 
@@ -127,7 +154,6 @@ export const EconomyService = {
     const now = new Date().toISOString();
 
     for (const { id: leagueId } of allLeagues) {
-      // Verificar se já foi atribuído o bónus desta jornada nesta liga
       const alreadyAwarded = db.prepare(`
         SELECT COUNT(*) as count FROM round_bonuses WHERE league_id = ? AND round = ?
       `).get(leagueId, round).count;
@@ -136,13 +162,12 @@ export const EconomyService = {
         continue;
       }
 
-      // Pontuação da jornada por membro
       const roundScores = db.prepare(`
         SELECT 
           lm.user_id,
           COALESCE(ROUND(SUM(p.net_points), 2), 0.00) as round_points
         FROM league_members lm
-        JOIN predictions p ON p.user_id = lm.user_id AND p.league_id = lm.league_id
+        JOIN predictions p ON p.user_id = lm.user_id AND (p.league_id = lm.league_id OR p.league_id IS NULL)
         JOIN games g ON p.game_id = g.id AND g.round = ? AND g.status = 'FINISHED'
         WHERE lm.league_id = ?
         GROUP BY lm.user_id
@@ -161,14 +186,10 @@ export const EconomyService = {
           VALUES (?, ?, ?, ?, 3.00, ?)
         `).run(bonusId, leagueId, round, winner.user_id, now);
 
-        db.prepare(`
-          UPDATE league_members 
-          SET balance = ROUND(balance + 3.00, 2) 
-          WHERE league_id = ? AND user_id = ?
-        `).run(leagueId, winner.user_id);
-
         console.log(`⭐ Bónus de +3 pts atribuído a ${winner.user_id} na liga ${leagueId} (Jornada ${round})`);
       }
+
+      this.recalculateLeagueBalances(leagueId);
     }
   }
 };

@@ -63,7 +63,7 @@ export function initDb() {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       game_id TEXT NOT NULL,
-      league_id TEXT NOT NULL,
+      league_id TEXT,
       choice TEXT NOT NULL,
       created_at TEXT NOT NULL,
       points_won REAL NOT NULL DEFAULT 0.00,
@@ -86,7 +86,13 @@ export function initDb() {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `);
+
+  try {
+    const cols = db.prepare('PRAGMA table_info(predictions)').all().map(c => c.name);
+    if (!cols.includes('league_id')) {
+      db.exec('ALTER TABLE predictions ADD COLUMN league_id TEXT');
+    }
+  } catch (e) {}
 }
 
-// Executar initDb imediatamente para garantir tabelas prontas
 initDb();
