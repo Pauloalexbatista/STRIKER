@@ -137,6 +137,14 @@ router.get('/games', (req, res) => {
   const userId = req.query.userId || '';
   const leagueId = req.query.leagueId || '';
 
+  // Atualizar automaticamente jogos que já iniciaram
+  const now = new Date().toISOString();
+  db.prepare(`
+    UPDATE games 
+    SET status = 'LIVE' 
+    WHERE status = 'UPCOMING' AND kickoff_time <= ?
+  `).run(now);
+
   const games = db.prepare(`
     SELECT 
       g.*,
@@ -202,7 +210,14 @@ router.get('/games/:id/report', (req, res) => {
     WHERE g.id = ?
   `).get(gameId);
 
-  if (!game) return res.status(404).json({ error: 'Jogo nÃƒÆ’Ã‚Â£o encontrado' });
+  if (!game) return res.status(404).json({ error: 'Jogo não encontrado' });
+
+  const isStarted = game.status === 'LIVE' || game.status === 'FINISHED' || new Date(game.kickoff_time) <= new Date();
+
+  if (isStarted && game.status === 'UPCOMING') {
+    db.prepare("UPDATE games SET status = 'LIVE' WHERE id = ?").run(gameId);
+    game.status = 'LIVE';
+  }
 
   // Buscar apenas palpites dos membros desta liga
   const bets = db.prepare(`
@@ -212,15 +227,28 @@ router.get('/games/:id/report', (req, res) => {
     WHERE p.game_id = ? AND p.league_id = ?
   `).all(gameId, leagueId);
 
-  const homeBets = bets.filter(b => b.choice === 'HOME');
-  const drawBets = bets.filter(b => b.choice === 'DRAW');
-  const awayBets = bets.filter(b => b.choice === 'AWAY');
-  const totalBets = bets.length;
+  // Buscar todos os membros desta liga para apurar quem apostou e quem faltou
+  const allMembers = leagueId ? db.prepare(`
+    SELECT u.id, u.name, u.avatar, u.favorite_club
+    FROM league_members lm
+    JOIN users u ON lm.user_id = u.id
+    WHERE lm.league_id = ?
+  `).all(leagueId) : [];
+
+  const validBets = bets.filter(b => b.choice !== 'MISSED');
+  const bettorUserIds = new Set(validBets.map(b => b.user_id));
+  const missingMembers = allMembers.filter(m => !bettorUserIds.has(m.id));
+
+  const homeBets = validBets.filter(b => b.choice === 'HOME');
+  const drawBets = validBets.filter(b => b.choice === 'DRAW');
+  const awayBets = validBets.filter(b => b.choice === 'AWAY');
+  const totalBets = validBets.length;
   const pool = totalBets * 1.00;
 
-  if (game.status === 'UPCOMING') {
+  if (!isStarted) {
     return res.json({
       game,
+      isStarted: false,
       isLocked: false,
       totalBets,
       poolPoints: pool,
@@ -228,12 +256,14 @@ router.get('/games/:id/report', (req, res) => {
         home: { title: game.home_short, count: homeBets.length, bets: [] },
         draw: { title: 'EMPATE', count: drawBets.length, bets: [] },
         away: { title: game.away_short, count: awayBets.length, bets: [] }
-      }
+      },
+      missingMembers: []
     });
   }
 
   return res.json({
     game,
+    isStarted: true,
     isLocked: true,
     totalBets,
     poolPoints: pool,
@@ -241,7 +271,8 @@ router.get('/games/:id/report', (req, res) => {
       home: { title: game.home_short, count: homeBets.length, bets: homeBets },
       draw: { title: 'EMPATE', count: drawBets.length, bets: drawBets },
       away: { title: game.away_short, count: awayBets.length, bets: awayBets }
-    }
+    },
+    missingMembers
   });
 });
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { Clock, Lock, CheckCircle2, BarChart3 } from 'lucide-react';
 import { useTheme, hexToRgba } from '../contexts/ThemeContext';
 import { submitPrediction, fetchGameReport } from '../services/api';
@@ -71,10 +71,17 @@ export function GameCard({ game, activeLeague, onOpenReport }) {
     }
   };
 
+  const hasBet = Boolean(userChoice);
+
   return (
     <div
-      className="bg-[#0b0e17]/90 border border-slate-800/60 rounded-2xl px-3.5 pt-2.5 pb-3 shadow-lg relative overflow-hidden"
-      style={{ boxShadow: `0 0 0 1px ${hexToRgba(activeTheme?.primary, 0.06)}, 0 4px 24px rgba(0,0,0,0.45)` }}
+      className={`bg-[#0b0e17]/90 border ${hasBet ? '' : 'border-slate-800/60'} rounded-2xl px-3.5 pt-2.5 pb-3 shadow-lg relative overflow-hidden transition-all duration-300`}
+      style={{
+        borderColor: hasBet ? (activeTheme?.primary || '#ffd700') : undefined,
+        boxShadow: hasBet
+          ? `0 0 18px ${hexToRgba(activeTheme?.primary || '#ffd700', 0.35)}, 0 4px 24px rgba(0,0,0,0.45)`
+          : `0 0 0 1px ${hexToRgba(activeTheme?.primary, 0.06)}, 0 4px 24px rgba(0,0,0,0.45)`
+      }}
     >
       {/* Top Row: Round + Date + Status + Report */}
       <div className="flex items-center justify-between text-[10px] text-slate-400">
@@ -202,17 +209,28 @@ export function GameCard({ game, activeLeague, onOpenReport }) {
         />
       </div>
 
-      {/* Footer: only bet count */}
+      {/* Footer: Os 3 Estados do Cartão + Contagem de apostas */}
       <div className="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
-        <div className="text-slate-500 flex items-center gap-1">
-          {!isLive && !isFinished && (
-            <span className="flex items-center gap-0.5 text-[9px]" title="Ninguem ve os palpites ate ao apito inicial">
-              <Lock size={10} className="text-slate-600" />
-              <span>Secretas</span>
-            </span>
+        <div className="flex-1 min-w-0 pr-2">
+          {!isLive && !isFinished ? (
+            <div className="flex items-center gap-1 text-[9px] text-amber-300/90 font-medium truncate" title="Aposta Aberta até ao início do jogo (pode alterar) • Aposta Secreta">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+              <span className="truncate">Aposta Aberta (pode alterar) • Aposta Secreta</span>
+            </div>
+          ) : isLive ? (
+            <div className="flex items-center gap-1 text-[9px] text-rose-400 font-semibold truncate" title="Aposta Fechada (não pode alterar) • Todos podem ver a aposta">
+              <Lock size={10} className="shrink-0 text-rose-400" />
+              <span className="truncate">Aposta Fechada • Palpites Revelados</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-[9px] text-emerald-400 font-medium truncate" title="Cartão Fechado • Resultados disponíveis">
+              <CheckCircle2 size={10} className="shrink-0 text-emerald-400" />
+              <span className="truncate">Cartão Fechado • Resultados Concluídos</span>
+            </div>
           )}
         </div>
-        <div className="text-slate-500 text-[10px]">
+
+        <div className="text-slate-400 font-mono text-[10px] shrink-0 font-semibold">
           {totalBets} {totalBets === 1 ? 'aposta' : 'apostas'}
         </div>
       </div>

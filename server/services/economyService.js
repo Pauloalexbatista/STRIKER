@@ -25,16 +25,15 @@ export const EconomyService = {
       this.lockGameAtKickoff(gameId);
     }
 
-    // 1. Obter todas as ligas com palpites para este jogo
-    const leaguesWithBets = db.prepare(`
-      SELECT DISTINCT league_id FROM predictions WHERE game_id = ?
-    `).all(gameId);
+    // 1. Obter todas as ligas existentes para processar pontuações
+    const allLeagues = db.prepare('SELECT id FROM leagues').all();
+    const now = new Date().toISOString();
 
-    // 2. Processar a divisão do pote dentro de CADA liga
-    for (const { league_id } of leaguesWithBets) {
+    // 2. Processar cada liga
+    for (const { id: leagueId } of allLeagues) {
       const bets = db.prepare(`
-        SELECT * FROM predictions WHERE game_id = ? AND league_id = ?
-      `).all(gameId, league_id);
+        SELECT * FROM predictions WHERE game_id = ? AND league_id = ? AND choice != 'MISSED'
+      `).all(gameId, leagueId);
 
       const totalBettors = bets.length;
       const pool = Number((totalBettors * 1.00).toFixed(2));
@@ -48,7 +47,7 @@ export const EconomyService = {
         pointsPerWinner = Number((pool / numWinners).toFixed(2));
       }
 
-      // Vencedores da Liga
+      // Vencedores da Liga (dividem o pote)
       for (const winner of winners) {
         db.prepare(`
           UPDATE predictions 
@@ -60,10 +59,10 @@ export const EconomyService = {
           UPDATE league_members 
           SET balance = ROUND(balance + ?, 2) 
           WHERE league_id = ? AND user_id = ?
-        `).run(pointsPerWinner, league_id, winner.user_id);
+        `).run(pointsPerWinner, leagueId, winner.user_id);
       }
 
-      // Perdedores da Liga
+      // Perdedores da Liga (-1.00 pt)
       for (const loser of losers) {
         db.prepare(`
           UPDATE predictions 
@@ -75,7 +74,37 @@ export const EconomyService = {
           UPDATE league_members 
           SET balance = ROUND(balance - 1.00, 2) 
           WHERE league_id = ? AND user_id = ?
-        `).run(league_id, loser.user_id);
+        `).run(leagueId, loser.user_id);
+      }
+
+      // Membros da Liga que NÃO apostaram (-2.00 pts por falta)
+      // Apenas aplicamos se a liga tiver pelo menos 1 aposta registada ou membros ativos
+      if (totalBettors > 0) {
+        const members = db.prepare('SELECT user_id FROM league_members WHERE league_id = ?').all(leagueId);
+        const bettorIds = new Set(bets.map(b => b.user_id));
+
+        for (const member of members) {
+          if (!bettorIds.has(member.user_id)) {
+            // Verificar se já existe penalização registada
+            const existingMissed = db.prepare(`
+              SELECT id FROM predictions WHERE game_id = ? AND league_id = ? AND user_id = ?
+            `).get(gameId, leagueId, member.user_id);
+
+            if (!existingMissed) {
+              const missedId = 'missed_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+              db.prepare(`
+                INSERT INTO predictions (id, user_id, game_id, league_id, choice, created_at, points_won, net_points)
+                VALUES (?, ?, ?, ?, 'MISSED', ?, 0.00, -2.00)
+              `).run(missedId, member.user_id, gameId, leagueId, now);
+
+              db.prepare(`
+                UPDATE league_members 
+                SET balance = ROUND(balance - 2.00, 2) 
+                WHERE league_id = ? AND user_id = ?
+              `).run(leagueId, member.user_id);
+            }
+          }
+        }
       }
     }
 

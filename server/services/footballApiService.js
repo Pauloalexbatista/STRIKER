@@ -1,4 +1,4 @@
-import { db } from '../db/database.js';
+﻿import { db } from '../db/database.js';
 import { EconomyService } from './economyService.js';
 
 const API_KEY = process.env.FOOTBALL_DATA_KEY || '18e25bca121b4b829177e56f8a02d44d';
@@ -24,21 +24,53 @@ const TEAM_MAP = {
   'SCF': 'SCF',
   'AVS': 'AVS',
   'AMA': 'CFEA',
+  'ALV': 'ALV',
+  'ACV': 'ACV',
+  'CSM': 'CSM',
   // Nomes alternativos
   'Sporting CP': 'SCP',
   'SL Benfica': 'SLB',
+  'FC Porto': 'FCP',
   'Porto': 'FCP',
+  'SC Braga': 'SCB',
   'Braga': 'SCB',
-  'VitÃƒÂ³ria SC': 'VSC',
-  'FamalicÃƒÂ£o': 'FCF',
+  'Vitória SC': 'VSC',
+  'FC Famalicão': 'FCF',
+  'Famalicão': 'FCF',
+  'Moreirense FC': 'MFC',
   'Moreirense': 'MFC',
+  'Gil Vicente FC': 'GVC',
   'Gil Vicente': 'GVC',
+  'Rio Ave FC': 'RAV',
   'Rio Ave': 'RAV',
+  'GD Estoril Praia': 'EST',
   'Estoril Praia': 'EST',
+  'Estoril': 'EST',
+  'Boavista FC': 'BFC',
+  'Boavista': 'BFC',
+  'FC Arouca': 'FCA',
   'Arouca': 'FCA',
+  'CD Santa Clara': 'CDSC',
   'Santa Clara': 'CDSC',
+  'Casa Pia AC': 'CPAC',
   'Casa Pia': 'CPAC',
-  'Amadora': 'CFEA'
+  'CF Estrela da Amadora': 'CFEA',
+  'Estrela da Amadora': 'CFEA',
+  'Amadora': 'CFEA',
+  'CD Nacional': 'CDN',
+  'Nacional': 'CDN',
+  'FC Alverca': 'ALV',
+  'Alverca': 'ALV',
+  'Académico de Viseu FC': 'ACV',
+  'Académico de Viseu': 'ACV',
+  'Academico de Viseu': 'ACV',
+  'CS Marítimo': 'CSM',
+  'Marítimo': 'CSM',
+  'Maritimo': 'CSM',
+  'SC Farense': 'SCF',
+  'Farense': 'SCF',
+  'AVS Futebol SAD': 'AVS',
+  'AVS SAD': 'AVS'
 };
 
 function resolveClubId(team) {
@@ -47,14 +79,13 @@ function resolveClubId(team) {
   if (team.shortName && TEAM_MAP[team.shortName]) return TEAM_MAP[team.shortName];
   if (team.name && TEAM_MAP[team.name]) return TEAM_MAP[team.name];
 
-  // Fallback por pesquisa
   const name = (team.shortName || team.name || '').toLowerCase();
   if (name.includes('sporting')) return 'SCP';
   if (name.includes('benfica')) return 'SLB';
   if (name.includes('porto')) return 'FCP';
   if (name.includes('braga')) return 'SCB';
-  if (name.includes('vitÃƒÂ³ria') || name.includes('guimarÃƒÂ£es')) return 'VSC';
-  if (name.includes('famalicÃƒÂ£o')) return 'FCF';
+  if (name.includes('vitória') || name.includes('vitoria') || name.includes('guimar')) return 'VSC';
+  if (name.includes('famalic')) return 'FCF';
   if (name.includes('moreirense')) return 'MFC';
   if (name.includes('gil vicente')) return 'GVC';
   if (name.includes('rio ave')) return 'RAV';
@@ -63,17 +94,21 @@ function resolveClubId(team) {
   if (name.includes('casa pia')) return 'CPAC';
   if (name.includes('arouca')) return 'FCA';
   if (name.includes('nacional')) return 'CDN';
+  if (name.includes('alverca')) return 'ALV';
+  if (name.includes('acad') || name.includes('viseu')) return 'ACV';
+  if (name.includes('marítimo') || name.includes('maritimo')) return 'CSM';
   if (name.includes('santa clara')) return 'CDSC';
   if (name.includes('farense')) return 'SCF';
   if (name.includes('estrela') || name.includes('amadora')) return 'CFEA';
+  if (name.includes('avs')) return 'AVS';
 
   return 'SCP';
 }
 
 export const FootballApiService = {
-  async syncMatchday(matchday = 3) {
+  async syncMatchday(matchday = 6) {
     try {
-      console.log(`Ã°Å¸â€œÂ¡ A consultar football-data.org para a Jornada ${matchday}...`);
+      console.log(`⚽ A consultar football-data.org para a Jornada ${matchday}...`);
       const res = await fetch(`${BASE_URL}/competitions/PPL/matches?matchday=${matchday}`, {
         headers: { 'X-Auth-Token': API_KEY }
       });
@@ -94,14 +129,12 @@ export const FootballApiService = {
         const awayId = resolveClubId(m.awayTeam);
         const round = m.matchday || matchday;
 
-        // Procurar jogo oficial existente por equipas e jornada (NUNCA criar jogos duplicados)
         const existing = db.prepare(`
           SELECT * FROM games 
           WHERE round = ? AND home_club_id = ? AND away_club_id = ?
         `).get(round, homeId, awayId);
 
         if (!existing) {
-          // Não existe no calendário oficial - ignorar
           continue;
         }
 
@@ -110,10 +143,11 @@ export const FootballApiService = {
         // Se o jogo está a decorrer (IN_PLAY / PAUSED)
         if (m.status === 'IN_PLAY' || m.status === 'PAUSED') {
           EconomyService.lockGameAtKickoff(targetGameId);
-          if (m.score && m.score.fullTime && m.score.fullTime.home !== null) {
-            db.prepare('UPDATE games SET home_score = ?, away_score = ? WHERE id = ?')
-              .run(m.score.fullTime.home, m.score.fullTime.away, targetGameId);
-          }
+          const homeScore = m.score?.fullTime?.home ?? m.score?.halfTime?.home ?? 0;
+          const awayScore = m.score?.fullTime?.away ?? m.score?.halfTime?.away ?? 0;
+          db.prepare("UPDATE games SET status = 'LIVE', home_score = ?, away_score = ? WHERE id = ?")
+            .run(homeScore, awayScore, targetGameId);
+          updatedCount++;
         }
 
         // Se o jogo TERMINOU (FINISHED)
@@ -125,17 +159,17 @@ export const FootballApiService = {
         }
       }
 
-      console.log(`Ã¢Å“â€¦ SincronizaÃƒÂ§ÃƒÂ£o concluÃƒÂ­da: ${data.matches.length} jogos processados.`);
+      console.log(`✅ Sincronização concluída: ${data.matches.length} jogos processados, ${updatedCount} atualizados.`);
       return { success: true, count: data.matches.length, matches: data.matches };
     } catch (err) {
-      console.error('Erro na sincronizaÃƒÂ§ÃƒÂ£o da API de futebol:', err.message);
+      console.error('Erro na sincronização da API de futebol:', err.message);
       return { success: false, error: err.message };
     }
   },
 
-  // Iniciar sincronizaÃƒÂ§ÃƒÂ£o periÃƒÂ³dica (a cada 30 minutos)
-  startAutoSync(intervalMinutes = 30) {
-    console.log(`Ã°Å¸Â¤â€“ RobÃƒÂ´ de futebol automÃƒÂ¡tico ativado (intervalo: ${intervalMinutes}m)`);
+  // Iniciar sincronização periódica a cada 5 minutos
+  startAutoSync(intervalMinutes = 5) {
+    console.log(`🤖 Robô de futebol automático ativado (intervalo: ${intervalMinutes}m)`);
     // Sincroniza logo ao arrancar
     this.syncMatchday(6);
 

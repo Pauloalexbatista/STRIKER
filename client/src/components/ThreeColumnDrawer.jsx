@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { fetchGameReport } from '../services/api';
-import { X, Lock, Eye, CheckCircle2, TrendingUp, Award } from 'lucide-react';
+import { X, Lock, Eye, CheckCircle2, TrendingUp, Award, AlertCircle } from 'lucide-react';
 
 export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
   const [data, setData] = useState(null);
@@ -40,19 +40,19 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
               <span className="text-xs uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-slate-800 text-amber-300 border border-slate-700 font-mono">
                 {activeLeague ? activeLeague.name : 'Geral'}
               </span>
-              {data?.game?.status === 'UPCOMING' && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                  <Lock size={12} /> APOSTAS SECRETAS
-                </span>
-              )}
               {data?.game?.status === 'LIVE' && (
                 <span className="text-xs font-semibold px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-rose-500" /> EM DIRECTO
+                  <span className="w-2 h-2 rounded-full bg-rose-500" /> AO VIVO
                 </span>
               )}
               {data?.game?.status === 'FINISHED' && (
                 <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1">
                   <CheckCircle2 size={12} /> TERMINADO
+                </span>
+              )}
+              {data?.game?.status === 'UPCOMING' && !data?.isStarted && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                  <Lock size={12} /> APOSTAS SECRETAS
                 </span>
               )}
             </div>
@@ -64,7 +64,7 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
 
           <button 
             onClick={onClose}
-            className="p-2 rounded-full bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            className="p-2 rounded-full bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -85,7 +85,7 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
           
           <div className="text-[10px] text-slate-400 flex items-center gap-1">
             <span className="text-amber-400 font-semibold">Regra da Liga:</span>
-            <span>Contas no apito final • Acertadores dividem o pote de {Number(data?.poolPoints || 0).toFixed(2)} pts • Quem erra perde 1 pt</span>
+            <span>Contas no apito final • Acertadores dividem o pote • Quem erra perde 1 pt</span>
           </div>
         </div>
 
@@ -93,7 +93,7 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
         <div className="p-3 overflow-y-auto flex-1">
           {loading ? (
             <div className="py-12 text-center text-slate-400 text-sm animate-pulse">
-              A carregar relatório das 3 colunas...
+              A carregar palpites da liga...
             </div>
           ) : (
             <>
@@ -134,29 +134,57 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
 
               </div>
 
-              {/* Status Note Footer */}
-              {!data.isLocked ? (
-                <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5">
-                  <Lock size={16} className="text-amber-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-200/90 leading-relaxed">
-                    <strong className="text-amber-300">Apostas Secretas na Liga:</strong> Podes ver quantas pessoas apostaram em cada coluna ({data.columns.home.count} | {data.columns.draw.count} | {data.columns.away.count}), mas os nomes só aparecem no apito inicial.
-                  </p>
-                </div>
-              ) : data.game.status === 'LIVE' ? (
-                <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5">
-                  <Eye size={16} className="text-rose-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-rose-200/90 leading-relaxed">
-                    <strong className="text-rose-300">Jogo a Decorrer:</strong> Todos os palpites foram revelados. Ao apito final, quem acertou recebe a sua parte de {Number(data.poolPoints).toFixed(2)} pts e quem errou perde 1 pt (-1.00)!
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5">
-                  <Award size={16} className="text-emerald-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-emerald-200/90 leading-relaxed">
-                    <strong className="text-emerald-300">Contas Concluídas:</strong> A coluna vencedora está assinalada. Quem acertou ganhou a sua fatia do pote e quem errou perdeu 1 pt (-1.00).
-                  </p>
-                </div>
+              {/* Bloco de Jogadores da Liga: Todos apostaram vs Quem não apostou */}
+              {data.missingMembers && (
+                data.missingMembers.length === 0 ? (
+                  <div className="mt-3.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5">
+                    <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                    <p className="text-xs text-emerald-200/90 leading-relaxed font-medium">
+                      <strong className="text-emerald-300">Presença 100%:</strong> Todos os jogadores desta liga colocaram a sua aposta!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-3.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-amber-300 text-xs font-bold">
+                        <AlertCircle size={15} className="text-amber-400 shrink-0" />
+                        <span>
+                          {data.missingMembers.length === 1 
+                            ? '1 jogador não colocou aposta' 
+                            : `${data.missingMembers.length} jogadores não colocaram aposta`}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-amber-400/90 font-mono font-bold">
+                        (-2 pts no apito final)
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {data.missingMembers.map(m => (
+                        <div 
+                          key={m.id} 
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-amber-500/40 text-[11px] shadow-sm"
+                        >
+                          <span className="text-xs">{m.avatar || '👤'}</span>
+                          <span className="font-semibold text-slate-200">{m.name.split(' ')[0]}</span>
+                          <span className="font-bold text-rose-400 font-orbitron text-[10px] ml-1.5">
+                            -2.00
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
               )}
+
+              {/* Informação de encerramento / apito final */}
+              <div className="mt-3 text-center text-[10px] text-slate-400">
+                {data.game.status === 'FINISHED' ? (
+                  <span>🏆 Jogo concluído • Contas liquidadas e pontuações atribuídas</span>
+                ) : (
+                  <span>⚡ Jogo a decorrer • Pontuações são atualizadas no apito final</span>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -214,7 +242,7 @@ function ColumnBlock({ title, subTitle, bets, count, isLocked, isWinner, status 
                 }`}
               >
                 <div className="flex items-center gap-1 min-w-0">
-                  <span className="text-xs shrink-0">{b.user_avatar || '⚽'}</span>
+                  <span className="text-xs shrink-0">{b.user_avatar || '👤'}</span>
                   <span className="truncate font-medium text-[10px] text-slate-200" title={b.user_name}>
                     {b.user_name.split(' ')[0]}
                   </span>

@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,7 +8,7 @@ import { FootballApiService } from './services/footballApiService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Inicializar e popular clubes se necessário
+// Inicializar e popular clubes se necessÃ¡rio
 seedData();
 
 const app = express();
@@ -25,16 +25,16 @@ app.get('/api/health', (req, res) => {
 // Rotas da API
 app.use('/api', apiRouter);
 
-// Servir frontend compilado em produção
+// Servir frontend compilado em produÃ§Ã£o
 const clientDist = path.join(__dirname, '../client/dist');
 
-// Assets com hash imutável (cache longa)
+// Assets com hash imutÃ¡vel (cache longa)
 app.use('/assets', express.static(path.join(clientDist, 'assets'), {
   maxAge: '1y',
   immutable: true
 }));
 
-// Outros estáticos com no-cache para forçar atualização no browser e PWA
+// Outros estÃ¡ticos com no-cache para forÃ§ar atualizaÃ§Ã£o no browser e PWA
 app.use(express.static(clientDist, {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html') || filePath.endsWith('sw.js') || filePath.endsWith('manifest.webmanifest')) {
@@ -52,7 +52,8 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`⚽ STRIKER Backend a rodar em http://0.0.0.0:${PORT}`);
-  // Iniciar sincronização automática com a API oficial
-  FootballApiService.startAutoSync(30);
+  console.log(`âš½ STRIKER Backend a rodar em http://0.0.0.0:${PORT}`);
+  // Iniciar sincronizaÃ§Ã£o automÃ¡tica com a API oficial
+  FootballApiService.startAutoSync(5);
 });
+
