@@ -70,22 +70,42 @@ export function seedData() {
     console.error('Erro na limpeza de avatares:', err);
   }
 
-  // 3. Recalibrar pontuações de jogos FINISHED para a regra oficial (+3, -1, -2)
+  // 3. Eliminar previsões duplicadas na base de dados
   try {
+    // Eliminar previsões órfãs sem league_id quando já existe com league_id
+    db.exec(`
+      DELETE FROM predictions 
+      WHERE league_id IS NULL 
+      AND EXISTS (
+        SELECT 1 FROM predictions p2 
+        WHERE p2.user_id = predictions.user_id 
+          AND p2.game_id = predictions.game_id 
+          AND p2.league_id IS NOT NULL
+      );
+    `);
+
+    // Eliminar quaisquer duplicatas restantes por user_id e game_id
+    db.exec(`
+      DELETE FROM predictions 
+      WHERE rowid NOT IN (
+        SELECT MIN(rowid) 
+        FROM predictions 
+        GROUP BY user_id, game_id, COALESCE(league_id, '')
+      );
+    `);
+
+    // Calibrar pontuações de jogos FINISHED (+3, -1, -2)
     const finishedGames = db.prepare("SELECT id, result FROM games WHERE status = 'FINISHED'").all();
     for (const fg of finishedGames) {
-      // Vencedores: +3.00
       db.prepare("UPDATE predictions SET points_won = 3.00, net_points = 3.00 WHERE game_id = ? AND choice = ? AND choice != 'MISSED'").run(fg.id, fg.result);
-      // Perdedores: -1.00
       db.prepare("UPDATE predictions SET points_won = 0.00, net_points = -1.00 WHERE game_id = ? AND choice != ? AND choice != 'MISSED'").run(fg.id, fg.result);
-      // Faltosos: -2.00
       db.prepare("UPDATE predictions SET points_won = 0.00, net_points = -2.00 WHERE game_id = ? AND choice = 'MISSED'").run(fg.id);
     }
 
-    // Recalcular todos os saldos absolutos na BD (reverte 15 e -5 para 3 e -1 imediatamente)
+    // Recalcular saldos de forma determinística
     EconomyService.recalculateAllBalances();
-    console.log('✅ Saldos de todos os membros recalculados e calibrados com sucesso!');
+    console.log('✅ Base de dados desduplicada e saldos recalculados com sucesso!');
   } catch (err) {
-    console.error('Erro no recalculo de saldos:', err);
+    console.error('Erro na limpeza/recalculo de previsões:', err);
   }
 }

@@ -328,11 +328,11 @@ router.get('/leaderboard/general', (req, res) => {
   const leaders = db.prepare(`
     SELECT 
       u.id, u.name, u.avatar, u.favorite_club, lm.balance,
-      COUNT(CASE WHEN p.choice != 'MISSED' THEN 1 END) as total_bets,
-      COUNT(CASE WHEN p.net_points > 0 THEN 1 END) as wins,
+      COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND p.net_points != 0 THEN p.game_id END) as total_bets,
+      COUNT(DISTINCT CASE WHEN p.net_points > 0 THEN p.game_id END) as wins,
       CASE 
-        WHEN COUNT(CASE WHEN p.choice != 'MISSED' THEN 1 END) > 0 THEN 
-          ROUND((COUNT(CASE WHEN p.net_points > 0 THEN 1 END) * 100.0) / COUNT(CASE WHEN p.choice != 'MISSED' THEN 1 END), 1)
+        WHEN COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND p.net_points != 0 THEN p.game_id END) > 0 THEN 
+          ROUND((COUNT(DISTINCT CASE WHEN p.net_points > 0 THEN p.game_id END) * 100.0) / COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND p.net_points != 0 THEN p.game_id END), 1)
         ELSE 0.0
       END as efficiency_pct
     FROM league_members lm
@@ -364,6 +364,12 @@ router.post('/users/update-club', (req, res) => {
 });
 
 // 10. Sincronizar API de futebol
+// Rota utilitária para forçar recálculo e saneamento imediato de saldos
+router.get('/admin/fix-balances', (req, res) => {
+  EconomyService.recalculateAllBalances();
+  res.json({ success: true, message: 'Todos os saldos foram recalculados com sucesso!' });
+});
+
 router.post('/admin/sync-api', async (req, res) => {
   const matchday = req.body.matchday ? parseInt(req.body.matchday) : 6;
   const result = await FootballApiService.syncMatchday(matchday);

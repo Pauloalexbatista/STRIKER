@@ -11,22 +11,34 @@ export const EconomyService = {
     return db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
   },
 
-  // Recalcular saldos de uma liga de forma determinística a partir de previsões + bónus
+  // Recalcular saldos de uma liga de forma determinística e blindada a duplicados
   recalculateLeagueBalances(leagueId) {
     const members = db.prepare('SELECT user_id FROM league_members WHERE league_id = ?').all(leagueId);
     for (const m of members) {
+      // Agrupar por game_id garante que cada jogo FINISHED só conta rigorosamente 1 única vez
       const predSum = db.prepare(`
-        SELECT COALESCE(ROUND(SUM(net_points), 2), 0.00) as total
-        FROM predictions
-        WHERE user_id = ? AND (league_id = ? OR league_id IS NULL)
+        SELECT COALESCE(ROUND(SUM(sub.net_points), 2), 0.00) as total
+        FROM (
+          SELECT p.net_points
+          FROM predictions p
+          JOIN games g ON p.game_id = g.id
+          WHERE p.user_id = ? 
+            AND (p.league_id = ? OR p.league_id IS NULL)
+            AND g.status = 'FINISHED'
+          GROUP BY p.game_id
+        ) sub
       `).get(m.user_id, leagueId).total;
 
       let bonusSum = 0;
       try {
         const row = db.prepare(`
-          SELECT COALESCE(ROUND(SUM(bonus_points), 2), 0.00) as total
-          FROM round_bonuses
-          WHERE user_id = ? AND league_id = ?
+          SELECT COALESCE(ROUND(SUM(sub_bonus.bonus_points), 2), 0.00) as total
+          FROM (
+            SELECT bonus_points
+            FROM round_bonuses
+            WHERE user_id = ? AND league_id = ?
+            GROUP BY round
+          ) sub_bonus
         `).get(m.user_id, leagueId);
         bonusSum = row ? row.total : 0;
       } catch (err) {
@@ -165,14 +177,19 @@ export const EconomyService = {
       const roundScores = db.prepare(`
         SELECT 
           lm.user_id,
-          COALESCE(ROUND(SUM(p.net_points), 2), 0.00) as round_points
+          COALESCE(ROUND(SUM(sub.net_points), 2), 0.00) as round_points
         FROM league_members lm
-        JOIN predictions p ON p.user_id = lm.user_id AND (p.league_id = lm.league_id OR p.league_id IS NULL)
-        JOIN games g ON p.game_id = g.id AND g.round = ? AND g.status = 'FINISHED'
+        LEFT JOIN (
+          SELECT p.user_id, p.net_points
+          FROM predictions p
+          JOIN games g ON p.game_id = g.id AND g.round = ? AND g.status = 'FINISHED'
+          WHERE p.league_id = ? OR p.league_id IS NULL
+          GROUP BY p.user_id, p.game_id
+        ) sub ON lm.user_id = sub.user_id
         WHERE lm.league_id = ?
         GROUP BY lm.user_id
         ORDER BY round_points DESC
-      `).all(round, leagueId);
+      `).all(round, leagueId, leagueId);
 
       if (roundScores.length === 0) continue;
 
