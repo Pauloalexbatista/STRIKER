@@ -1,41 +1,41 @@
-import { X, HelpCircle } from 'lucide-react';
+﻿import { X, HelpCircle, Sparkles } from 'lucide-react';
 import { useTheme, hexToRgba } from '../contexts/ThemeContext';
 
 const RULES = [
   {
     num: '1',
     title: 'Junta o Grupo',
-    text: 'Cria a tua liga e convida os amigos que juram que percebem de futebol.'
+    text: 'Cria a tua liga ou entra por código e junta os amigos que juram que percebem de bola.'
   },
   {
     num: '2',
-    title: 'Palpites 1 X 2',
-    text: 'Da o teu prognostico em todos os jogos da jornada: Vitoria Casa (1), Empate (X) ou Vitoria Fora (2).'
+    title: 'Palpites 1 X 2 Gratuitos',
+    text: 'Colocar palpites NÃO retira pontos. Escolhe Vitória Casa (1), Empate (X) ou Vitória Fora (2) em todos os jogos da jornada.'
   },
   {
     num: '3',
-    title: 'Pontuacao dos Jogos',
+    title: 'Pontuação dos Jogos',
     points: [
-      { label: 'Acerto', value: '+3 pontos', color: 'text-emerald-400' },
-      { label: 'Erro', value: '-1 ponto', color: 'text-rose-400' },
-      { label: 'Nao apostou', value: '-2 pontos', color: 'text-rose-500' },
+      { label: 'Acerto', value: '+3 pts', color: 'text-emerald-400' },
+      { label: 'Erro', value: '-1 pt', color: 'text-rose-400' },
+      { label: 'Não apostou', value: '-2 pts', color: 'text-rose-500' },
     ],
-    text: 'Todos comecam a epoca com 0 pontos — o saldo pode ficar negativo.'
+    text: 'Todos começam com 0 pontos — o saldo pode ficar positivo ou negativo ao longo da época.'
   },
   {
     num: '4',
-    title: 'Bonus de Campiao da Jornada',
-    text: 'Quem fizer mais pontos na jornada recebe +3 pontos extra. Em caso de empate no 1.o lugar, todos os empatados recebem os +3 pontos.'
+    title: 'Bónus Campeão da Jornada',
+    text: 'Quando todos os jogos da jornada terminarem, quem fizer mais pontos na jornada recebe +3 pontos extra! Em caso de empate no 1º lugar, todos os empatados recebem os +3 pontos.'
   },
   {
     num: '5',
-    title: 'Fecho e Transparencia',
-    text: 'O palpite tranca no apito inicial de cada partida. Assim que o jogo comeca, as apostas de todos os adversarios ficam visiveis. Os pontos sao processados logo apos o apito final.'
+    title: 'Fecho e Transparência',
+    text: 'O palpite tranca ao apito inicial de cada jogo. Assim que a bola rola, os palpites de todos os membros da liga ficam visíveis. As pontuações são creditadas logo após o apito final.'
   },
   {
     num: '6',
-    title: 'Campiao da Epoca',
-    text: 'Quem tiver mais pontos acumulados no final do campeonato leva o trofeu para casa.'
+    title: 'Campeão da Época',
+    text: 'Quem tiver mais pontos acumulados no final das 34 jornadas sagra-se o grande campeão STRIKER da época!'
   }
 ];
 
@@ -56,7 +56,7 @@ export function RulesModal({ isOpen, onClose }) {
         <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
           <h3 className="text-sm font-bold text-white flex items-center gap-2 font-orbitron">
             <HelpCircle size={16} style={{ color: activeTheme?.primary }} />
-            Regras do STRIKER
+            Regras Oficiais do STRIKER
           </h3>
           <button
             onClick={onClose}
@@ -97,7 +97,7 @@ export function RulesModal({ isOpen, onClose }) {
 
         {/* Footer */}
         <div
-          className="mt-5 p-3 rounded-xl text-center text-[10px] font-bold font-orbitron"
+          className="mt-5 p-3 rounded-xl text-center text-[10px] font-bold font-orbitron flex items-center justify-center gap-1.5"
           style={{
             backgroundColor: hexToRgba(activeTheme?.primary, 0.08),
             borderColor: hexToRgba(activeTheme?.primary, 0.25),
@@ -105,7 +105,8 @@ export function RulesModal({ isOpen, onClose }) {
             border: '1px solid'
           }}
         >
-          Boa sorte a todos! Que vença o melhor! ⚡
+          <Sparkles size={14} />
+          <span>Boa sorte a todos! Que vença o melhor STRIKER! ⚽</span>
         </div>
       </div>
     </div>

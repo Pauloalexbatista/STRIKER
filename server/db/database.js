@@ -73,5 +73,20 @@ export function initDb() {
       FOREIGN KEY (game_id) REFERENCES games(id),
       FOREIGN KEY (league_id) REFERENCES leagues(id)
     );
+
+    CREATE TABLE IF NOT EXISTS round_bonuses (
+      id TEXT PRIMARY KEY,
+      league_id TEXT NOT NULL,
+      round INTEGER NOT NULL,
+      user_id TEXT NOT NULL,
+      bonus_points REAL NOT NULL DEFAULT 3.00,
+      created_at TEXT NOT NULL,
+      UNIQUE(league_id, round, user_id),
+      FOREIGN KEY (league_id) REFERENCES leagues(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
   `);
 }
+
+// Executar initDb imediatamente para garantir tabelas prontas
+initDb();

@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { fetchGameReport } from '../services/api';
-import { X, Lock, Eye, CheckCircle2, TrendingUp, Award, AlertCircle } from 'lucide-react';
+import { X, Lock, Eye, CheckCircle2, Award, AlertCircle, Sparkles } from 'lucide-react';
 
 export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
   const [data, setData] = useState(null);
@@ -70,22 +70,25 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
           </button>
         </div>
 
-        {/* Total Pool & Formula Information Banner */}
-        <div className="bg-slate-900/90 px-4 py-2.5 border-b border-slate-800/70 flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TrendingUp size={16} className="text-amber-400" />
-              <span className="text-xs text-slate-300 font-medium">Pote Desta Liga:</span>
-              <span className="text-xs text-slate-400 font-mono">({data?.totalBets || 0} apostas)</span>
+        {/* Banner Oficial de Pontuações STRIKER */}
+        <div className="bg-slate-900/90 px-4 py-2.5 border-b border-slate-800/70 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 font-bold font-orbitron">
+              <span className="text-emerald-400">Acerto +3 pts</span>
+              <span className="text-slate-600">•</span>
+              <span className="text-rose-400">Erro -1 pt</span>
+              <span className="text-slate-600">•</span>
+              <span className="text-rose-500">Falta -2 pts</span>
             </div>
-            <div className="text-sm font-bold font-orbitron text-amber-400">
-              {Number(data?.poolPoints || 0).toFixed(2)} pts
+            <div className="text-[11px] font-bold font-orbitron text-amber-400 flex items-center gap-1">
+              <Sparkles size={13} className="text-amber-400" />
+              <span>TOP Jornada: +3 pts</span>
             </div>
           </div>
           
-          <div className="text-[10px] text-slate-400 flex items-center gap-1">
-            <span className="text-amber-400 font-semibold">Regra da Liga:</span>
-            <span>Contas no apito final • Acertadores dividem o pote • Quem erra perde 1 pt</span>
+          <div className="text-[10px] text-slate-400 flex items-center justify-between">
+            <span>Apostas deste jogo: <strong className="text-slate-200 font-mono">{data?.totalBets || 0} palpites</strong></span>
+            <span className="text-slate-500">Pontuação processada no apito final</span>
           </div>
         </div>
 
@@ -154,7 +157,7 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
                             : `${data.missingMembers.length} jogadores não colocaram aposta`}
                         </span>
                       </div>
-                      <span className="text-[10px] text-amber-400/90 font-mono font-bold">
+                      <span className="text-[10px] text-rose-400 font-mono font-bold">
                         (-2 pts no apito final)
                       </span>
                     </div>
@@ -168,7 +171,7 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
                           <span className="text-xs">{m.avatar || '👤'}</span>
                           <span className="font-semibold text-slate-200">{m.name.split(' ')[0]}</span>
                           <span className="font-bold text-rose-400 font-orbitron text-[10px] ml-1.5">
-                            -2.00
+                            -2 pts
                           </span>
                         </div>
                       ))}
@@ -180,9 +183,9 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
               {/* Informação de encerramento / apito final */}
               <div className="mt-3 text-center text-[10px] text-slate-400">
                 {data.game.status === 'FINISHED' ? (
-                  <span>🏆 Jogo concluído • Contas liquidadas e pontuações atribuídas</span>
+                  <span>🏆 Jogo concluído • Pontuações oficiais (+3, -1 ou -2 pts) creditadas no campeonato</span>
                 ) : (
-                  <span>⚡ Jogo a decorrer • Pontuações são atualizadas no apito final</span>
+                  <span>⚡ Jogo a decorrer • Pontuações são atribuídas no apito final</span>
                 )}
               </div>
             </>
@@ -230,7 +233,6 @@ function ColumnBlock({ title, subTitle, bets, count, isLocked, isWinner, status 
         ) : (
           bets.map((b) => {
             const hasWon = Number(b.net_points) > 0;
-            const pointsWon = Number(b.points_won || 0).toFixed(2);
 
             return (
               <div 
@@ -248,19 +250,19 @@ function ColumnBlock({ title, subTitle, bets, count, isLocked, isWinner, status 
                   </span>
                 </div>
 
-                <div className="shrink-0 text-right">
+                <div className="shrink-0 text-right font-orbitron font-bold text-[10px]">
                   {status === 'FINISHED' ? (
                     hasWon ? (
-                      <span className="font-bold text-emerald-400 font-orbitron text-[10px]">
-                        +{pointsWon}
+                      <span className="text-emerald-400">
+                        +3 pts
                       </span>
                     ) : (
-                      <span className="font-semibold text-rose-400 font-orbitron text-[10px]">
-                        -1.00
+                      <span className="text-rose-400">
+                        -1 pt
                       </span>
                     )
                   ) : (
-                    <span className="text-cyan-400/80 font-mono text-[9px]">
+                    <span className="text-cyan-400/80 font-mono text-[9px] font-normal">
                       em jogo
                     </span>
                   )}
