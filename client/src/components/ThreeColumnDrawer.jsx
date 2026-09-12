@@ -262,16 +262,16 @@ function ColumnBlock({ title, subTitle, bets, count, isLocked, isWinner, status 
                     : 'bg-slate-800/60 border-slate-700/50 text-slate-300'
                 }`}
               >
-                <div className="flex items-center gap-1 min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
                   <span className="text-xs shrink-0">{avatar}</span>
-                  <span className="truncate font-medium text-[10px] text-slate-200" title={rawName}>
+                  <span className="truncate font-medium text-[11px] text-slate-200" title={rawName}>
                     {displayName}
                   </span>
                 </div>
 
-                <div className="shrink-0 text-right font-orbitron font-bold text-[10px]">
-                  {status === 'FINISHED' ? (
-                    hasWon ? (
+                {status === 'FINISHED' && (
+                  <div className="shrink-0 text-right font-orbitron font-bold text-[10px] ml-1">
+                    {hasWon ? (
                       <span className="text-emerald-400">
                         +3 pts
                       </span>
@@ -279,13 +279,9 @@ function ColumnBlock({ title, subTitle, bets, count, isLocked, isWinner, status 
                       <span className="text-rose-400">
                         -1 pt
                       </span>
-                    )
-                  ) : (
-                    <span className="text-cyan-400/80 font-mono text-[9px] font-normal">
-                      em jogo
-                    </span>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })
