@@ -118,36 +118,72 @@ router.post('/leagues/join', (req, res) => {
 });
 
 // 3.1. LIGAS: Apagar Campeonato (apenas o criador ou admin)
-router.delete("/leagues/:id", (req, res) => {
+router.all("/leagues/:id/delete", (req, res) => handleLeagueDelete(req, res));
+router.delete("/leagues/:id", (req, res) => handleLeagueDelete(req, res));
+
+function handleLeagueDelete(req, res) {
   const { id } = req.params;
   const userId = req.body?.userId || req.query?.userId;
 
   if (!userId) {
-    return res.status(400).json({ error: "Utilizador n�o especificado" });
+    return res.status(400).json({ error: "Utilizador não especificado" });
   }
 
   const league = db.prepare("SELECT * FROM leagues WHERE id = ?").get(id);
   if (!league) {
-    return res.status(404).json({ error: "Campeonato n�o encontrado" });
+    return res.status(404).json({ error: "Campeonato não encontrado" });
   }
 
-  // Verificar se o utilizador � o criador ou o admin Paulo
+  // Verificar se o utilizador é o criador ou o admin Paulo
   if (league.creator_id !== userId && userId !== "u_paulo") {
     return res.status(403).json({ error: "Apenas o criador deste campeonato o pode apagar!" });
   }
 
   try {
-    db.prepare("DELETE FROM predictions WHERE league_id = ?").run(id);
-    db.prepare("DELETE FROM round_bonuses WHERE league_id = ?").run(id);
-    db.prepare("DELETE FROM league_members WHERE league_id = ?").run(id);
+    // 1. Desativar temporariamente FKs durante a remoção em cascata
+    try { db.exec("PRAGMA foreign_keys = OFF;"); } catch {}
+
+    // 2. Apagar palpites desta liga
+    try {
+      db.prepare("DELETE FROM predictions WHERE league_id = ?").run(id);
+    } catch (e) {
+      console.warn("Aviso predictions:", e.message);
+    }
+
+    // 3. Apagar bónus desta liga se a tabela existir
+    try {
+      db.prepare("DELETE FROM round_bonuses WHERE league_id = ?").run(id);
+    } catch (e) {
+      console.warn("Aviso round_bonuses:", e.message);
+    }
+
+    // 4. Apagar membros desta liga
+    try {
+      db.prepare("DELETE FROM league_members WHERE league_id = ?").run(id);
+    } catch (e) {
+      console.warn("Aviso league_members:", e.message);
+    }
+
+    // 5. Apagar o registo da liga
     db.prepare("DELETE FROM leagues WHERE id = ?").run(id);
+
+    // 6. Reativar foreign_keys
+    try { db.exec("PRAGMA foreign_keys = ON;"); } catch {}
+
+    // 7. Recalcular saldos gerais
+    try {
+      EconomyService.recalculateAllBalances();
+    } catch (e) {
+      console.warn("Aviso recalculate:", e.message);
+    }
 
     res.json({ success: true, message: `Campeonato "${league.name}" apagado com sucesso!` });
   } catch (err) {
     console.error("Erro ao apagar campeonato:", err);
-    res.status(500).json({ error: "Erro ao apagar campeonato na base de dados" });
+    try { db.exec("PRAGMA foreign_keys = ON;"); } catch {}
+    res.status(500).json({ error: `Erro ao apagar campeonato: ${err.message}` });
   }
-});
+}
 
 // 3.2. LIGAS: Sair de um Campeonato (para membros convidados)
 router.post("/leagues/leave", (req, res) => {

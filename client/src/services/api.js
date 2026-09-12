@@ -40,7 +40,8 @@ export async function joinLeague(userId, code) {
 }
 
 export async function deleteLeague(leagueId, userId) {
-  const res = await fetch(`${BASE_URL}/leagues/${leagueId}`, {
+  const url = `${BASE_URL}/leagues/${leagueId}?userId=${encodeURIComponent(userId || '')}`;
+  const res = await fetch(url, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ userId })
