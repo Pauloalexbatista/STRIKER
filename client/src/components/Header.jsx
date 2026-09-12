@@ -30,13 +30,11 @@ export function Header({ onOpenLeaderboard, activeLeague, onOpenLeagueModal, onO
               {activeTheme.badge}
             </button>
             <div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center">
                 <h1 className="font-orbitron text-base font-black tracking-wider text-white flex items-center">
                   STRIKER
                 </h1>
-                <span className="text-[8px] uppercase font-bold tracking-widest px-1.5 py-0.2 rounded border transition-all duration-300" style={{ backgroundColor: `${hexToRgba(activeTheme?.primary, 0.15)}`, borderColor: `${hexToRgba(activeTheme?.primary, 0.45)}`, color: activeTheme.primary }}>
-                  PRO
-                </span>
+                
               </div>
               <div className="text-[10px] text-slate-400 flex items-center gap-1">
                 <span>Olá,</span>

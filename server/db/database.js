@@ -93,6 +93,40 @@ export function initDb() {
       db.exec('ALTER TABLE predictions ADD COLUMN league_id TEXT');
     }
   } catch (e) {}
+
+  // Migração automática se a tabela predictions ainda tiver constraint antiga UNIQUE(user_id, game_id)
+  try {
+    const table = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='predictions'").get();
+    if (table && table.sql.includes('UNIQUE(user_id, game_id)')) {
+      console.log('🔄 A migrar tabela predictions para UNIQUE(user_id, game_id, league_id)...');
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS predictions_new (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          game_id TEXT NOT NULL,
+          league_id TEXT,
+          choice TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          points_won REAL NOT NULL DEFAULT 0.00,
+          net_points REAL NOT NULL DEFAULT 0.00,
+          UNIQUE(user_id, game_id, league_id),
+          FOREIGN KEY (user_id) REFERENCES users(id),
+          FOREIGN KEY (game_id) REFERENCES games(id),
+          FOREIGN KEY (league_id) REFERENCES leagues(id)
+        );
+
+        INSERT OR IGNORE INTO predictions_new (id, user_id, game_id, league_id, choice, created_at, points_won, net_points)
+        SELECT id, user_id, game_id, league_id, choice, created_at, points_won, net_points
+        FROM predictions;
+
+        DROP TABLE predictions;
+        ALTER TABLE predictions_new RENAME TO predictions;
+      `);
+      console.log('✅ Migração da tabela predictions concluída.');
+    }
+  } catch (err) {
+    console.error('Nota na verificação de migração de predictions:', err.message);
+  }
 }
 
 initDb();

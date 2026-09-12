@@ -54,6 +54,6 @@ app.get('*', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`âš½ STRIKER Backend a rodar em http://0.0.0.0:${PORT}`);
   // Iniciar sincronizaÃ§Ã£o automÃ¡tica com a API oficial
-  FootballApiService.startAutoSync(5);
+  FootballApiService.startAutoSync(1);
 });
 

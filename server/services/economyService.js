@@ -127,7 +127,7 @@ export const EconomyService = {
           if (!existingMissed) {
             const missedId = 'missed_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
             db.prepare(`
-              INSERT INTO predictions (id, user_id, game_id, league_id, choice, created_at, points_won, net_points)
+              INSERT OR IGNORE INTO predictions (id, user_id, game_id, league_id, choice, created_at, points_won, net_points)
               VALUES (?, ?, ?, ?, 'MISSED', ?, 0.00, -2.00)
             `).run(missedId, member.user_id, gameId, leagueId, now);
           }

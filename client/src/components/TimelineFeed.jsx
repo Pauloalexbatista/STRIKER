@@ -24,6 +24,13 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) 
 
   useEffect(() => {
     loadGames(false);
+
+    // Atualiza��o autom�tica e silenciosa a cada 30 segundos (resultados ao vivo)
+    const interval = setInterval(() => {
+      loadGames(true);
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [round, currentUser?.id, activeLeague?.id]);
 
   // Atualização silenciosa: o ecrã NÃO salta para o topo quando o utilizador aposta

@@ -165,10 +165,19 @@ router.get('/leagues/my', (req, res) => {
 });
 
 // 5. Obter jogos da jornada (adaptados à liga ativa)
-router.get('/games', (req, res) => {
+router.get('/games', async (req, res) => {
   const round = req.query.round ? parseInt(req.query.round) : 6;
   const userId = req.query.userId || '';
   const leagueId = req.query.leagueId || '';
+
+  // Sincronizar com a API oficial se já passaram mais de 45 segundos desde o último sync
+  if (Date.now() - (FootballApiService.lastSyncTime || 0) > 45000) {
+    try {
+      await FootballApiService.syncMatchday(round);
+    } catch (err) {
+      console.error('Erro na sincronização em /games:', err.message);
+    }
+  }
 
   // Atualizar automaticamente jogos que já iniciaram
   const now = new Date().toISOString();
@@ -421,8 +430,8 @@ router.get('/admin/fix-balances', (req, res) => {
   res.json({ success: true, message: 'Todos os saldos foram recalculados com sucesso!' });
 });
 
-router.post('/admin/sync-api', async (req, res) => {
-  const matchday = req.body.matchday ? parseInt(req.body.matchday) : 6;
+router.all('/admin/sync-api', async (req, res) => {
+  const matchday = (req.body?.matchday || req.query?.matchday) ? parseInt(req.body?.matchday || req.query?.matchday) : 6;
   const result = await FootballApiService.syncMatchday(matchday);
   res.json(result);
 });

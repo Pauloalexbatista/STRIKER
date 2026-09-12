@@ -140,8 +140,26 @@ export const FootballApiService = {
 
         const targetGameId = existing.id;
 
+        // Critério robusto de fim de jogo:
+        // 1. Status oficial FINISHED
+        // 2. Ou status IN_PLAY/PAUSED mas com winner atribuído pela API e mais de 105 minutos decorridos
+        const isFinished = m.status === 'FINISHED' || (
+          (m.status === 'IN_PLAY' || m.status === 'PAUSED') &&
+          m.score?.winner !== null &&
+          m.score?.fullTime?.home !== null &&
+          m.score?.fullTime?.away !== null &&
+          (Date.now() - new Date(m.utcDate).getTime() > 105 * 60 * 1000)
+        );
+
+        // Se o jogo TERMINOU
+        if (isFinished && m.score && m.score.fullTime && m.score.fullTime.home !== null) {
+          const homeScore = m.score.fullTime.home;
+          const awayScore = m.score.fullTime.away;
+          EconomyService.settleGame(targetGameId, homeScore, awayScore);
+          updatedCount++;
+        } 
         // Se o jogo está a decorrer (IN_PLAY / PAUSED)
-        if (m.status === 'IN_PLAY' || m.status === 'PAUSED') {
+        else if (m.status === 'IN_PLAY' || m.status === 'PAUSED') {
           EconomyService.lockGameAtKickoff(targetGameId);
           const homeScore = m.score?.fullTime?.home ?? m.score?.halfTime?.home ?? 0;
           const awayScore = m.score?.fullTime?.away ?? m.score?.halfTime?.away ?? 0;
@@ -149,16 +167,9 @@ export const FootballApiService = {
             .run(homeScore, awayScore, targetGameId);
           updatedCount++;
         }
-
-        // Se o jogo TERMINOU (FINISHED)
-        if (m.status === 'FINISHED' && m.score && m.score.fullTime && m.score.fullTime.home !== null) {
-          const homeScore = m.score.fullTime.home;
-          const awayScore = m.score.fullTime.away;
-          EconomyService.settleGame(targetGameId, homeScore, awayScore);
-          updatedCount++;
-        }
       }
 
+      this.lastSyncTime = Date.now();
       console.log(`✅ Sincronização concluída: ${data.matches.length} jogos processados, ${updatedCount} atualizados.`);
       return { success: true, count: data.matches.length, matches: data.matches };
     } catch (err) {
@@ -167,8 +178,10 @@ export const FootballApiService = {
     }
   },
 
-  // Iniciar sincronização periódica a cada 5 minutos
-  startAutoSync(intervalMinutes = 5) {
+  lastSyncTime: 0,
+
+  // Iniciar sincronização periódica a cada 1 minuto
+  startAutoSync(intervalMinutes = 1) {
     console.log(`🤖 Robô de futebol automático ativado (intervalo: ${intervalMinutes}m)`);
     // Sincroniza logo ao arrancar
     this.syncMatchday(6);
