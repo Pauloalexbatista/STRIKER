@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
-import { Trophy, Plus, KeyRound, Share2, Check, Users, ShieldAlert, Sparkles, X } from 'lucide-react';
-import { createLeague, joinLeague } from '../services/api';
+import { Trophy, Plus, KeyRound, Share2, Check, Users, ShieldAlert, Sparkles, X, Trash2, LogOut } from 'lucide-react';
+import { createLeague, joinLeague, deleteLeague, leaveLeague } from '../services/api';
 
 export function LeagueModal({ 
   isOpen, 
@@ -20,6 +20,8 @@ export function LeagueModal({
   const [error, setError] = useState('');
   const [copiedCode, setCopiedCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [actionSuccess, setActionSuccess] = useState('');
 
   if (!isOpen) return null;
 
@@ -59,6 +61,48 @@ export function LeagueModal({
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteLeague = async (league) => {
+    const confirmed = window.confirm(
+      `Tens a certeza que queres APAGAR o campeonato "${league.name}" (#${league.code})?\n\nEsta ação é irreversível e vai eliminar todas as classificações e palpites desta liga.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingId(league.id);
+      setError('');
+      setActionSuccess('');
+      await deleteLeague(league.id, userId);
+      await onRefreshLeagues();
+      setActionSuccess(`Campeonato "${league.name}" apagado com sucesso!`);
+      setTimeout(() => setActionSuccess(''), 4000);
+    } catch (err) {
+      setError(err.message || 'Erro ao apagar campeonato');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleLeaveLeague = async (league) => {
+    const confirmed = window.confirm(
+      `Tens a certeza que queres SAIR do campeonato "${league.name}" (#${league.code})?`
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingId(league.id);
+      setError('');
+      setActionSuccess('');
+      await leaveLeague(league.id, userId);
+      await onRefreshLeagues();
+      setActionSuccess(`Saíste do campeonato "${league.name}".`);
+      setTimeout(() => setActionSuccess(''), 4000);
+    } catch (err) {
+      setError(err.message || 'Erro ao sair do campeonato');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -102,6 +146,12 @@ export function LeagueModal({
         {error && (
           <div className="mt-3 p-2.5 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-300 text-xs">
             {error}
+          </div>
+        )}
+
+        {actionSuccess && (
+          <div className="mt-3 p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/50 text-emerald-300 text-xs">
+            {actionSuccess}
           </div>
         )}
 
@@ -159,9 +209,9 @@ export function LeagueModal({
                         </div>
                       </div>
 
-                      {/* Right: Balance & Share Button */}
-                      <div className="flex items-center gap-2">
-                        <div className="text-right">
+                      {/* Right: Balance & Actions (Share & Delete/Leave) */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="text-right mr-0.5">
                           <span className={`text-xs font-bold font-orbitron block ${
                             isPos ? 'text-emerald-400' : isNeg ? 'text-rose-400' : 'text-slate-300'
                           }`}>
@@ -176,11 +226,39 @@ export function LeagueModal({
                             e.stopPropagation();
                             shareLeague(l);
                           }}
-                          className="p-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 active:scale-90"
+                          className="p-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 active:scale-90 transition-all cursor-pointer"
                           title="Partilhar Convite no WhatsApp"
                         >
                           <Share2 size={13} />
                         </button>
+
+                        {l.creator_id === userId || userId === 'u_paulo' ? (
+                          <button
+                            type="button"
+                            disabled={deletingId === l.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteLeague(l);
+                            }}
+                            className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-400 hover:text-rose-300 border border-rose-500/30 active:scale-90 transition-all cursor-pointer disabled:opacity-40"
+                            title="Apagar este campeonato"
+                          >
+                            <Trash2 size={13} className={deletingId === l.id ? 'animate-pulse' : ''} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={deletingId === l.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleLeaveLeague(l);
+                            }}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-300 border border-slate-700 active:scale-90 transition-all cursor-pointer disabled:opacity-40"
+                            title="Sair deste campeonato"
+                          >
+                            <LogOut size={13} className={deletingId === l.id ? 'animate-pulse' : ''} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

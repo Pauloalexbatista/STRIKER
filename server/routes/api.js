@@ -117,6 +117,62 @@ router.post('/leagues/join', (req, res) => {
   res.json({ success: true, league });
 });
 
+// 3.1. LIGAS: Apagar Campeonato (apenas o criador ou admin)
+router.delete("/leagues/:id", (req, res) => {
+  const { id } = req.params;
+  const userId = req.body?.userId || req.query?.userId;
+
+  if (!userId) {
+    return res.status(400).json({ error: "Utilizador n�o especificado" });
+  }
+
+  const league = db.prepare("SELECT * FROM leagues WHERE id = ?").get(id);
+  if (!league) {
+    return res.status(404).json({ error: "Campeonato n�o encontrado" });
+  }
+
+  // Verificar se o utilizador � o criador ou o admin Paulo
+  if (league.creator_id !== userId && userId !== "u_paulo") {
+    return res.status(403).json({ error: "Apenas o criador deste campeonato o pode apagar!" });
+  }
+
+  try {
+    db.prepare("DELETE FROM predictions WHERE league_id = ?").run(id);
+    db.prepare("DELETE FROM round_bonuses WHERE league_id = ?").run(id);
+    db.prepare("DELETE FROM league_members WHERE league_id = ?").run(id);
+    db.prepare("DELETE FROM leagues WHERE id = ?").run(id);
+
+    res.json({ success: true, message: `Campeonato "${league.name}" apagado com sucesso!` });
+  } catch (err) {
+    console.error("Erro ao apagar campeonato:", err);
+    res.status(500).json({ error: "Erro ao apagar campeonato na base de dados" });
+  }
+});
+
+// 3.2. LIGAS: Sair de um Campeonato (para membros convidados)
+router.post("/leagues/leave", (req, res) => {
+  const { userId, leagueId } = req.body;
+  if (!userId || !leagueId) return res.status(400).json({ error: "Dados incompletos" });
+
+  const league = db.prepare("SELECT * FROM leagues WHERE id = ?").get(leagueId);
+  if (!league) return res.status(404).json({ error: "Campeonato n�o encontrado" });
+
+  if (league.creator_id === userId) {
+    return res.status(400).json({ error: "�s o criador deste campeonato! Para sair, apaga o campeonato." });
+  }
+
+  try {
+    db.prepare("DELETE FROM predictions WHERE league_id = ? AND user_id = ?").run(leagueId, userId);
+    db.prepare("DELETE FROM round_bonuses WHERE league_id = ? AND user_id = ?").run(leagueId, userId);
+    db.prepare("DELETE FROM league_members WHERE league_id = ? AND user_id = ?").run(leagueId, userId);
+
+    res.json({ success: true, message: "Sa�ste do campeonato com sucesso" });
+  } catch (err) {
+    console.error("Erro ao sair do campeonato:", err);
+    res.status(500).json({ error: "Erro ao sair do campeonato" });
+  }
+});
+
 // 4. LIGAS: Obter as minhas ligas
 router.get('/leagues/my', (req, res) => {
   const userId = req.query.userId;

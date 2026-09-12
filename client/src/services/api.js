@@ -39,6 +39,32 @@ export async function joinLeague(userId, code) {
   return res.json();
 }
 
+export async function deleteLeague(leagueId, userId) {
+  const res = await fetch(`${BASE_URL}/leagues/${leagueId}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao apagar campeonato");
+  }
+  return res.json();
+}
+
+export async function leaveLeague(leagueId, userId) {
+  const res = await fetch(`${BASE_URL}/leagues/leave`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, leagueId })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao sair do campeonato");
+  }
+  return res.json();
+}
+
 export async function fetchMyLeagues(userId) {
   const res = await fetch(`${BASE_URL}/leagues/my?userId=${userId}`);
   return res.json();
