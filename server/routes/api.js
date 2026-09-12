@@ -125,7 +125,16 @@ router.get('/leagues/my', (req, res) => {
   const leagues = db.prepare(`
     SELECT 
       l.*,
-      lm.balance as user_balance,
+      COALESCE((
+        SELECT ROUND(SUM(p.net_points), 2)
+        FROM predictions p
+        JOIN games g ON p.game_id = g.id AND g.status = 'FINISHED'
+        WHERE p.user_id = lm.user_id AND p.league_id = l.id
+      ), 0.00) + COALESCE((
+        SELECT ROUND(SUM(rb.bonus_points), 2)
+        FROM round_bonuses rb
+        WHERE rb.user_id = lm.user_id AND rb.league_id = l.id
+      ), 0.00) as user_balance,
       (SELECT COUNT(*) FROM league_members WHERE league_id = l.id) as members_count
     FROM league_members lm
     JOIN leagues l ON lm.league_id = l.id
@@ -327,21 +336,33 @@ router.get('/leaderboard/general', (req, res) => {
 
   const leaders = db.prepare(`
     SELECT 
-      u.id, u.name, u.avatar, u.favorite_club, lm.balance,
-      COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND p.net_points != 0 THEN p.game_id END) as total_bets,
-      COUNT(DISTINCT CASE WHEN p.net_points > 0 THEN p.game_id END) as wins,
+      u.id, u.name, u.avatar, u.favorite_club,
+      COALESCE((
+        SELECT ROUND(SUM(p.net_points), 2)
+        FROM predictions p
+        JOIN games g ON p.game_id = g.id AND g.status = 'FINISHED'
+        WHERE p.user_id = u.id AND p.league_id = lm.league_id
+      ), 0.00) + COALESCE((
+        SELECT ROUND(SUM(rb.bonus_points), 2)
+        FROM round_bonuses rb
+        WHERE rb.user_id = u.id AND rb.league_id = lm.league_id
+      ), 0.00) as balance,
+      COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND g.status = 'FINISHED' THEN p.game_id END) as total_bets,
+      COUNT(DISTINCT CASE WHEN p.net_points > 0 AND g.status = 'FINISHED' THEN p.game_id END) as wins,
       CASE 
-        WHEN COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND p.net_points != 0 THEN p.game_id END) > 0 THEN 
-          ROUND((COUNT(DISTINCT CASE WHEN p.net_points > 0 THEN p.game_id END) * 100.0) / COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND p.net_points != 0 THEN p.game_id END), 1)
+        WHEN COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND g.status = 'FINISHED' THEN p.game_id END) > 0 THEN 
+          ROUND((COUNT(DISTINCT CASE WHEN p.net_points > 0 AND g.status = 'FINISHED' THEN p.game_id END) * 100.0) / 
+          COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND g.status = 'FINISHED' THEN p.game_id END), 1)
         ELSE 0.0
       END as efficiency_pct
     FROM league_members lm
     JOIN users u ON lm.user_id = u.id
-    LEFT JOIN predictions p ON p.user_id = u.id AND p.league_id = ? AND p.net_points != 0
+    LEFT JOIN predictions p ON p.user_id = u.id AND p.league_id = lm.league_id
+    LEFT JOIN games g ON p.game_id = g.id
     WHERE lm.league_id = ?
     GROUP BY u.id
-    ORDER BY lm.balance DESC, efficiency_pct DESC
-  `).all(leagueId, leagueId);
+    ORDER BY balance DESC, efficiency_pct DESC
+  `).all(leagueId);
 
   // Sanitizar avatares
   for (const l of leaders) {
