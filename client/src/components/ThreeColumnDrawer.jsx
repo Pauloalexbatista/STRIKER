@@ -1,6 +1,11 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { fetchGameReport } from '../services/api';
-import { X, Lock, Eye, CheckCircle2, Award, AlertCircle, Sparkles } from 'lucide-react';
+import { X, Lock, CheckCircle2, Award, AlertCircle, Sparkles } from 'lucide-react';
+
+function sanitizeText(str) {
+  if (!str) return '';
+  return str.replace(/^[ÃÂf\s]+(?=[A-Z])/g, '').replace(/Ãf/g, '').trim();
+}
 
 export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
   const [data, setData] = useState(null);
@@ -58,7 +63,7 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
             </div>
             
             <h2 className="text-base font-bold text-white mt-1.5 font-orbitron">
-              {data?.game?.home_short} <span className="text-slate-500 font-normal">vs</span> {data?.game?.away_short}
+              {sanitizeText(data?.game?.home_short)} <span className="text-slate-500 font-normal">vs</span> {sanitizeText(data?.game?.away_short)}
             </h2>
           </div>
 
@@ -104,7 +109,7 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
                 
                 {/* 1. Coluna CASA */}
                 <ColumnBlock 
-                  title={data.columns.home.title}
+                  title={sanitizeText(data.columns.home.title)}
                   subTitle="Vitória Casa (1)"
                   bets={data.columns.home.bets}
                   count={data.columns.home.count}
@@ -126,7 +131,7 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
 
                 {/* 3. Coluna FORA */}
                 <ColumnBlock 
-                  title={data.columns.away.title}
+                  title={sanitizeText(data.columns.away.title)}
                   subTitle="Vitória Fora (2)"
                   bets={data.columns.away.bets}
                   count={data.columns.away.count}
@@ -163,18 +168,22 @@ export function ThreeColumnDrawer({ gameId, activeLeague, onClose }) {
                     </div>
 
                     <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {data.missingMembers.map(m => (
-                        <div 
-                          key={m.id} 
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-amber-500/40 text-[11px] shadow-sm"
-                        >
-                          <span className="text-xs">{m.avatar || '👤'}</span>
-                          <span className="font-semibold text-slate-200">{m.name.split(' ')[0]}</span>
-                          <span className="font-bold text-rose-400 font-orbitron text-[10px] ml-1.5">
-                            -2 pts
-                          </span>
-                        </div>
-                      ))}
+                      {data.missingMembers.map(m => {
+                        const avatar = (!m.avatar || m.avatar.includes('Ã') || m.avatar.includes('ǟ') || m.avatar.length > 4) ? '👤' : m.avatar;
+                        const name = sanitizeText(m.name).split(' ')[0] || 'Jogador';
+                        return (
+                          <div 
+                            key={m.id} 
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-amber-500/40 text-[11px] shadow-sm"
+                          >
+                            <span className="text-xs">{avatar}</span>
+                            <span className="font-semibold text-slate-200">{name}</span>
+                            <span className="font-bold text-rose-400 font-orbitron text-[10px] ml-1.5">
+                              -2 pts
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )
@@ -233,6 +242,16 @@ function ColumnBlock({ title, subTitle, bets, count, isLocked, isWinner, status 
         ) : (
           bets.map((b) => {
             const hasWon = Number(b.net_points) > 0;
+            const avatar = (!b.user_avatar || b.user_avatar.includes('Ã') || b.user_avatar.includes('ǟ') || b.user_avatar.length > 4) 
+              ? '👤' 
+              : b.user_avatar;
+            
+            let rawName = b.user_name || 'Jogador';
+            if (rawName.includes('Ã') || rawName.includes('ǟ') || rawName.length > 15) {
+              if (b.user_id === 'u_paulo') rawName = 'Paulo';
+              else rawName = rawName.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚãõÃÕâêîôûÂÊÎÔÛçÇ ]/g, '').trim() || 'Jogador';
+            }
+            const displayName = rawName.split(' ')[0];
 
             return (
               <div 
@@ -244,9 +263,9 @@ function ColumnBlock({ title, subTitle, bets, count, isLocked, isWinner, status 
                 }`}
               >
                 <div className="flex items-center gap-1 min-w-0">
-                  <span className="text-xs shrink-0">{b.user_avatar || '👤'}</span>
-                  <span className="truncate font-medium text-[10px] text-slate-200" title={b.user_name}>
-                    {b.user_name.split(' ')[0]}
+                  <span className="text-xs shrink-0">{avatar}</span>
+                  <span className="truncate font-medium text-[10px] text-slate-200" title={rawName}>
+                    {displayName}
                   </span>
                 </div>
 

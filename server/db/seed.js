@@ -1,16 +1,14 @@
-import { db, initDb } from './database.js';
+﻿import { db } from './database.js';
 
 export function seedData() {
-  initDb();
-
-  // 1. Seed Clubs (always safe - INSERT OR REPLACE)
+  // 1. Seed Clubs limpos em UTF-8
   const clubs = [
     { id: 'SCP', name: 'Sporting CP', short_name: 'SPORTING CP', primary_color: '#00D166', secondary_color: '#FFFFFF', accent_color: '#00A34F' },
     { id: 'SLB', name: 'SL Benfica', short_name: 'SL BENFICA', primary_color: '#FF2E4D', secondary_color: '#FFFFFF', accent_color: '#D80027' },
     { id: 'FCP', name: 'FC Porto', short_name: 'FC PORTO', primary_color: '#007AFF', secondary_color: '#FFFFFF', accent_color: '#004F9F' },
     { id: 'SCB', name: 'SC Braga', short_name: 'SC BRAGA', primary_color: '#E30613', secondary_color: '#FFFFFF', accent_color: '#C2000A' },
-    { id: 'VSC', name: 'Vitoria SC', short_name: 'VITORIA SC', primary_color: '#F0F0F0', secondary_color: '#1A1A1A', accent_color: '#D4AF37' },
-    { id: 'FCF', name: 'FC Famalicao', short_name: 'FAMALICAO', primary_color: '#1E40AF', secondary_color: '#FFFFFF', accent_color: '#004098' },
+    { id: 'VSC', name: 'Vitória SC', short_name: 'VITÓRIA SC', primary_color: '#F0F0F0', secondary_color: '#1A1A1A', accent_color: '#D4AF37' },
+    { id: 'FCF', name: 'FC Famalicão', short_name: 'FAMALICÃO', primary_color: '#1E40AF', secondary_color: '#FFFFFF', accent_color: '#004098' },
     { id: 'MFC', name: 'Moreirense FC', short_name: 'MOREIRENSE', primary_color: '#059669', secondary_color: '#FFFFFF', accent_color: '#005C26' },
     { id: 'GVC', name: 'Gil Vicente FC', short_name: 'GIL VICENTE', primary_color: '#DC2626', secondary_color: '#1D4ED8', accent_color: '#E6A100' },
     { id: 'RAV', name: 'Rio Ave FC', short_name: 'RIO AVE', primary_color: '#10B981', secondary_color: '#FFFFFF', accent_color: '#008037' },
@@ -24,8 +22,8 @@ export function seedData() {
     { id: 'AVS', name: 'AVS Futebol SAD', short_name: 'AVS SAD', primary_color: '#991B1B', secondary_color: '#FBBF24', accent_color: '#7F1D1D' },
     { id: 'CFEA', name: 'Estrela da Amadora', short_name: 'ESTRELA', primary_color: '#E11D48', secondary_color: '#16A34A', accent_color: '#FFFFFF' },
     { id: 'ALV', name: 'FC Alverca', short_name: 'ALVERCA', primary_color: '#1E3A8A', secondary_color: '#FFFFFF', accent_color: '#3B82F6' },
-    { id: 'ACV', name: 'Academico de Viseu', short_name: 'AC. VISEU', primary_color: '#1F2937', secondary_color: '#FFFFFF', accent_color: '#4B5563' },
-    { id: 'CSM', name: 'CS Maritimo', short_name: 'MARITIMO', primary_color: '#059669', secondary_color: '#DC2626', accent_color: '#10B981' }
+    { id: 'ACV', name: 'Académico de Viseu', short_name: 'AC. VISEU', primary_color: '#1F2937', secondary_color: '#FFFFFF', accent_color: '#4B5563' },
+    { id: 'CSM', name: 'CS Marítimo', short_name: 'MARÍTIMO', primary_color: '#059669', secondary_color: '#DC2626', accent_color: '#10B981' }
   ];
 
   const insertClub = db.prepare(`
@@ -36,67 +34,39 @@ export function seedData() {
     insertClub.run(c.id, c.name, c.short_name, c.primary_color, c.secondary_color, c.accent_color);
   }
 
-  // 2. Initial Host User (Paulo) — only if NO users exist yet
-  const usersCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-  if (usersCount === 0) {
-    const now = new Date().toISOString();
-    db.prepare(`
-      INSERT INTO users (id, name, pin, favorite_club, avatar, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run('u_paulo', 'Paulo', '1234', 'SCP', String.fromCodePoint(0x1F947), now);
+  // 2. Corrigir e limpar utilizadores com avatares ou nomes corrompidos por mojibake na BD
+  try {
+    const clubAvatars = {
+      SCP: '🦁',
+      SLB: '🦅',
+      FCP: '🐉',
+      SCB: '⚔️',
+      VSC: '🛡️',
+      GOLD: '⚡'
+    };
 
-    const leaguesCount = db.prepare('SELECT COUNT(*) as count FROM leagues').get().count;
-    if (leaguesCount === 0) {
-      db.prepare(`
-        INSERT INTO leagues (id, name, code, creator_id, created_at)
-        VALUES (?, ?, ?, ?, ?)
-      `).run('l_striker', 'Striker Principal', 'STRIKER', 'u_paulo', now);
+    const users = db.prepare('SELECT id, name, favorite_club, avatar FROM users').all();
+    for (const u of users) {
+      const cleanAvatar = clubAvatars[u.favorite_club] || '⚽';
+      let cleanName = u.name;
 
-      db.prepare(`
-        INSERT INTO league_members (league_id, user_id, balance, joined_at)
-        VALUES (?, ?, 0.00, ?)
-      `).run('l_striker', 'u_paulo', now);
+      if (u.id === 'u_paulo' && (cleanName.includes('Ã') || cleanName.includes('ǟ') || cleanName.length > 15)) {
+        cleanName = 'Paulo';
+      }
+
+      // Se o avatar tiver caracteres corrompidos estranhos (Ã, ǟ, etc.) ou comprimento anormal
+      const needsAvatarFix = !u.avatar || u.avatar.includes('Ã') || u.avatar.includes('ǟ') || u.avatar.length > 4;
+      const needsNameFix = cleanName !== u.name;
+
+      if (needsAvatarFix || needsNameFix) {
+        db.prepare('UPDATE users SET avatar = ?, name = ? WHERE id = ?').run(
+          needsAvatarFix ? cleanAvatar : u.avatar,
+          cleanName,
+          u.id
+        );
+      }
     }
-  }
-
-  // 3. Seed Games — only if NO games exist yet (preserves real data on redeploy)
-  const gamesCount = db.prepare('SELECT COUNT(*) as count FROM games').get().count;
-  if (gamesCount === 0) {
-    // Jornada 6 (12-14 Set 2026) — NO Jornada 3
-    const games = [
-      // Sabado, 12/09/2026
-      { id: 'g_j6_cdn_alv',  round: 6, home: 'CDN',  away: 'ALV',  kickoff: '2026-09-12T14:30:00Z' },
-      { id: 'g_j6_cpac_fcp', round: 6, home: 'CPAC', away: 'FCP',  kickoff: '2026-09-12T17:00:00Z' },
-      { id: 'g_j6_acv_vsc',  round: 6, home: 'ACV',  away: 'VSC',  kickoff: '2026-09-12T19:30:00Z' },
-      // Domingo, 13/09/2026
-      { id: 'g_j6_fca_cdsc', round: 6, home: 'FCA',  away: 'CDSC', kickoff: '2026-09-13T17:00:00Z' },
-      { id: 'g_j6_slb_gvc',  round: 6, home: 'SLB',  away: 'GVC',  kickoff: '2026-09-13T17:00:00Z' },
-      { id: 'g_j6_fcf_scp',  round: 6, home: 'FCF',  away: 'SCP',  kickoff: '2026-09-13T19:30:00Z' },
-      // Segunda, 14/09/2026
-      { id: 'g_j6_rav_cfea', round: 6, home: 'RAV',  away: 'CFEA', kickoff: '2026-09-14T17:45:00Z' },
-      { id: 'g_j6_mfc_csm',  round: 6, home: 'MFC',  away: 'CSM',  kickoff: '2026-09-14T19:15:00Z' },
-      { id: 'g_j6_scb_est',  round: 6, home: 'SCB',  away: 'EST',  kickoff: '2026-09-14T19:45:00Z' },
-      // Jornada 7 (19-21 Set 2026)
-      { id: 'g_j7_scp_mfc',  round: 7, home: 'SCP',  away: 'MFC',  kickoff: '2026-09-19T17:00:00Z' },
-      { id: 'g_j7_fcp_acv',  round: 7, home: 'FCP',  away: 'ACV',  kickoff: '2026-09-19T19:30:00Z' },
-      { id: 'g_j7_alv_cpac', round: 7, home: 'ALV',  away: 'CPAC', kickoff: '2026-09-20T14:30:00Z' },
-      { id: 'g_j7_cdsc_slb', round: 7, home: 'CDSC', away: 'SLB',  kickoff: '2026-09-20T17:00:00Z' },
-      { id: 'g_j7_vsc_scb',  round: 7, home: 'VSC',  away: 'SCB',  kickoff: '2026-09-20T19:30:00Z' },
-      { id: 'g_j7_gvc_fca',  round: 7, home: 'GVC',  away: 'FCA',  kickoff: '2026-09-21T18:00:00Z' },
-      { id: 'g_j7_csm_rav',  round: 7, home: 'CSM',  away: 'RAV',  kickoff: '2026-09-21T18:45:00Z' },
-      { id: 'g_j7_est_fcf',  round: 7, home: 'EST',  away: 'FCF',  kickoff: '2026-09-21T20:15:00Z' },
-      { id: 'g_j7_cfea_cdn', round: 7, home: 'CFEA', away: 'CDN',  kickoff: '2026-09-21T20:45:00Z' }
-    ];
-
-    const insertGame = db.prepare(`
-      INSERT OR IGNORE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
-      VALUES (?, ?, ?, ?, ?, 'UPCOMING', null, null, null)
-    `);
-    for (const g of games) {
-      insertGame.run(g.id, g.round, g.home, g.away, g.kickoff);
-    }
-    console.log(`[SEED] ${games.length} jogos inseridos (J6+J7).`);
-  } else {
-    console.log(`[SEED] BD existente com ${gamesCount} jogos — seed ignorado. Dados preservados.`);
+  } catch (err) {
+    console.error('Erro na limpeza de avatares:', err);
   }
 }

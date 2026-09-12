@@ -1,15 +1,24 @@
-import express from 'express';
+﻿import express from 'express';
 import { db } from '../db/database.js';
-import { EconomyService } from '../services/economyService.js';
-import { FootballApiService } from '../services/footballApiService.js';
+import { EconomyService } from './economyService.js';
+import { FootballApiService } from './footballApiService.js';
 
 export const router = express.Router();
 
-// 1. Auth: Login ou Registo RÃƒÆ’Ã‚Â¡pido
+const CLUB_AVATARS = {
+  SCP: '🦁',
+  SLB: '🦅',
+  FCP: '🐉',
+  SCB: '⚔️',
+  VSC: '🛡️',
+  GOLD: '⚡'
+};
+
+// 1. Auth: Login ou Registo Rápido
 router.post('/auth/login', (req, res) => {
   const { name, pin, favoriteClub } = req.body;
   if (!name || !pin) {
-    return res.status(400).json({ error: 'Nome e PIN sÃƒÆ’Ã‚Â£o obrigatÃƒÆ’Ã‚Â³rios' });
+    return res.status(400).json({ error: 'Nome e PIN são obrigatórios' });
   }
 
   const cleanName = name.trim();
@@ -21,15 +30,17 @@ router.post('/auth/login', (req, res) => {
     if (existing.pin !== cleanPin) {
       return res.status(401).json({ error: 'PIN incorreto para este nome!' });
     }
+    // Auto-correção de avatar se estiver com caracteres corrompidos
+    if (!existing.avatar || existing.avatar.includes('Ã') || existing.avatar.includes('ǟ') || existing.avatar.length > 4) {
+      const fixedAvatar = CLUB_AVATARS[existing.favorite_club] || '⚽';
+      db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(fixedAvatar, existing.id);
+      existing.avatar = fixedAvatar;
+    }
     return res.json({ user: existing, isNew: false });
   }
 
-  const clubAvatars = {
-    SCP: 'ÃƒÂ°Ã…Â¸Ã‚Â¦Ã‚Â', SLB: 'ÃƒÂ°Ã…Â¸Ã‚Â¦Ã¢â‚¬Â¦', FCP: 'ÃƒÂ°Ã…Â¸Ã‚ÂÃ¢â‚¬Â°', SCB: 'ÃƒÂ¢Ã…Â¡Ã¢â‚¬ÂÃƒÂ¯Ã‚Â¸Ã‚Â', VSC: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â', GOLD: 'ÃƒÂ¢Ã…Â¡Ã‚Â¡'
-  };
-
   const club = favoriteClub || 'SCP';
-  const avatar = clubAvatars[club] || 'ÃƒÂ¢Ã…Â¡Ã‚Â½';
+  const avatar = CLUB_AVATARS[club] || '⚽';
   const id = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
   const now = new Date().toISOString();
 
@@ -42,28 +53,26 @@ router.post('/auth/login', (req, res) => {
   res.json({ user: newUser, isNew: true });
 });
 
-// 2. LIGAS: Criar Campeonato (MÃƒÆ’Ã‚Â¡ximo 3 por utilizador)
+// 2. LIGAS: Criar Campeonato (Máximo 3 por utilizador)
 router.post('/leagues/create', (req, res) => {
   const { userId, name, code } = req.body;
   if (!userId || !name || !code) {
-    return res.status(400).json({ error: 'Nome da liga e cÃƒÆ’Ã‚Â³digo de convite sÃƒÆ’Ã‚Â£o obrigatÃƒÆ’Ã‚Â³rios' });
+    return res.status(400).json({ error: 'Nome da liga e código de convite são obrigatórios' });
   }
 
-  // Verificar limite de 3 ligas criadas
   const createdCount = db.prepare('SELECT COUNT(*) as count FROM leagues WHERE creator_id = ?').get(userId).count;
   if (createdCount >= 3) {
-    return res.status(400).json({ error: 'JÃƒÆ’Ã‚Â¡ atingiste o limite mÃƒÆ’Ã‚Â¡ximo de 3 campeonatos criados!' });
+    return res.status(400).json({ error: 'Já atingiste o limite máximo de 3 campeonatos criados!' });
   }
 
   const cleanCode = code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
   if (cleanCode.length < 3) {
-    return res.status(400).json({ error: 'O cÃƒÆ’Ã‚Â³digo de convite deve ter pelo menos 3 caracteres' });
+    return res.status(400).json({ error: 'O código de convite deve ter pelo menos 3 caracteres' });
   }
 
-  // Verificar se o cÃƒÆ’Ã‚Â³digo jÃƒÆ’Ã‚Â¡ existe
   const existingCode = db.prepare('SELECT * FROM leagues WHERE code = ?').get(cleanCode);
   if (existingCode) {
-    return res.status(400).json({ error: 'Este cÃƒÆ’Ã‚Â³digo de convite jÃƒÆ’Ã‚Â¡ estÃƒÆ’Ã‚Â¡ a ser usado. Escolhe outro!' });
+    return res.status(400).json({ error: 'Este código de convite já está a ser usado. Escolhe outro!' });
   }
 
   const leagueId = 'l_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5);
@@ -74,7 +83,6 @@ router.post('/leagues/create', (req, res) => {
     VALUES (?, ?, ?, ?, ?)
   `).run(leagueId, name.trim(), cleanCode, userId, now);
 
-  // Adicionar o criador como 1Ãƒâ€šÃ‚Âº membro da liga com 0.00 pts
   db.prepare(`
     INSERT INTO league_members (league_id, user_id, balance, joined_at)
     VALUES (?, ?, 0.00, ?)
@@ -84,17 +92,17 @@ router.post('/leagues/create', (req, res) => {
   res.json({ success: true, league });
 });
 
-// 3. LIGAS: Entrar numa Liga por CÃƒÆ’Ã‚Â³digo de Convite
+// 3. LIGAS: Entrar numa Liga por Código de Convite
 router.post('/leagues/join', (req, res) => {
   const { userId, code } = req.body;
   if (!userId || !code) {
-    return res.status(400).json({ error: 'CÃƒÆ’Ã‚Â³digo de convite obrigatÃƒÆ’Ã‚Â³rio' });
+    return res.status(400).json({ error: 'Código de convite obrigatório' });
   }
 
   const cleanCode = code.trim().toUpperCase();
   const league = db.prepare('SELECT * FROM leagues WHERE code = ?').get(cleanCode);
   if (!league) {
-    return res.status(404).json({ error: 'Campeonato nÃƒÆ’Ã‚Â£o encontrado com esse cÃƒÆ’Ã‚Â³digo de convite!' });
+    return res.status(404).json({ error: 'Campeonato não encontrado com esse código de convite!' });
   }
 
   const isMember = db.prepare('SELECT * FROM league_members WHERE league_id = ? AND user_id = ?').get(league.id, userId);
@@ -118,20 +126,19 @@ router.get('/leagues/my', (req, res) => {
     SELECT 
       l.*,
       lm.balance as user_balance,
-      (SELECT COUNT(*) FROM league_members WHERE league_id = l.id) as total_members,
-      CASE WHEN l.creator_id = ? THEN 1 ELSE 0 END as is_creator
-    FROM leagues l
-    JOIN league_members lm ON l.id = lm.league_id
+      (SELECT COUNT(*) FROM league_members WHERE league_id = l.id) as members_count
+    FROM league_members lm
+    JOIN leagues l ON lm.league_id = l.id
     WHERE lm.user_id = ?
     ORDER BY l.created_at ASC
-  `).all(userId, userId);
+  `).all(userId);
 
   const createdCount = db.prepare('SELECT COUNT(*) as count FROM leagues WHERE creator_id = ?').get(userId).count;
 
   res.json({ leagues, createdCount, maxAllowed: 3 });
 });
 
-// 5. Obter jogos da jornada (adaptados ÃƒÆ’Ã‚Â  liga ativa)
+// 5. Obter jogos da jornada (adaptados à liga ativa)
 router.get('/games', (req, res) => {
   const round = req.query.round ? parseInt(req.query.round) : 6;
   const userId = req.query.userId || '';
@@ -151,7 +158,7 @@ router.get('/games', (req, res) => {
       hc.name as home_name, hc.short_name as home_short, hc.primary_color as home_color, hc.accent_color as home_accent,
       ac.name as away_name, ac.short_name as away_short, ac.primary_color as away_color, ac.accent_color as away_accent,
       p.choice as user_prediction, p.points_won as user_points_won, p.net_points as user_net_points,
-      (SELECT COUNT(*) FROM predictions WHERE game_id = g.id AND league_id = ?) as league_total_bets
+      (SELECT COUNT(*) FROM predictions WHERE game_id = g.id AND league_id = ? AND choice != 'MISSED') as league_total_bets
     FROM games g
     JOIN clubs hc ON g.home_club_id = hc.id
     JOIN clubs ac ON g.away_club_id = ac.id
@@ -163,7 +170,7 @@ router.get('/games', (req, res) => {
   res.json(games);
 });
 
-// 6. Colocar / Alterar palpite (por liga)
+// 6. Colocar / Alterar palpite (por liga - sem custo)
 router.post('/predictions', (req, res) => {
   const { userId, gameId, choice, leagueId } = req.body;
   if (!userId || !gameId || !choice || !leagueId) {
@@ -171,11 +178,11 @@ router.post('/predictions', (req, res) => {
   }
 
   const game = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
-  if (!game) return res.status(404).json({ error: 'Jogo nÃƒÆ’Ã‚Â£o encontrado' });
+  if (!game) return res.status(404).json({ error: 'Jogo não encontrado' });
 
   // Bloqueio rigoroso ao apito inicial
   if (game.status !== 'UPCOMING' || new Date(game.kickoff_time) <= new Date()) {
-    return res.status(400).json({ error: 'O jogo jÃƒÆ’Ã‚Â¡ iniciou! As apostas fecharam ao apito inicial.' });
+    return res.status(400).json({ error: 'O jogo já iniciou! As apostas fecharam ao apito inicial.' });
   }
 
   const now = new Date().toISOString();
@@ -195,7 +202,7 @@ router.post('/predictions', (req, res) => {
   res.json({ success: true, prediction: pred });
 });
 
-// 7. RelatÃƒÆ’Ã‚Â³rio das 3 colunas (filtrado pela liga ativa)
+// 7. Relatório das 3 colunas (filtrado pela liga ativa)
 router.get('/games/:id/report', (req, res) => {
   const gameId = req.params.id;
   const leagueId = req.query.leagueId;
@@ -235,6 +242,18 @@ router.get('/games/:id/report', (req, res) => {
     WHERE lm.league_id = ?
   `).all(leagueId) : [];
 
+  // Limpeza de avatar em tempo de resposta
+  for (const b of bets) {
+    if (!b.user_avatar || b.user_avatar.includes('Ã') || b.user_avatar.includes('ǟ') || b.user_avatar.length > 4) {
+      b.user_avatar = CLUB_AVATARS[b.user_club] || '⚽';
+    }
+  }
+  for (const m of allMembers) {
+    if (!m.avatar || m.avatar.includes('Ã') || m.avatar.includes('ǟ') || m.avatar.length > 4) {
+      m.avatar = CLUB_AVATARS[m.favorite_club] || '⚽';
+    }
+  }
+
   const validBets = bets.filter(b => b.choice !== 'MISSED');
   const bettorUserIds = new Set(validBets.map(b => b.user_id));
   const missingMembers = allMembers.filter(m => !bettorUserIds.has(m.id));
@@ -243,7 +262,6 @@ router.get('/games/:id/report', (req, res) => {
   const drawBets = validBets.filter(b => b.choice === 'DRAW');
   const awayBets = validBets.filter(b => b.choice === 'AWAY');
   const totalBets = validBets.length;
-  const pool = totalBets * 1.00;
 
   if (!isStarted) {
     return res.json({
@@ -251,7 +269,6 @@ router.get('/games/:id/report', (req, res) => {
       isStarted: false,
       isLocked: false,
       totalBets,
-      poolPoints: pool,
       columns: {
         home: { title: game.home_short, count: homeBets.length, bets: [] },
         draw: { title: 'EMPATE', count: drawBets.length, bets: [] },
@@ -266,7 +283,6 @@ router.get('/games/:id/report', (req, res) => {
     isStarted: true,
     isLocked: true,
     totalBets,
-    poolPoints: pool,
     columns: {
       home: { title: game.home_short, count: homeBets.length, bets: homeBets },
       draw: { title: 'EMPATE', count: drawBets.length, bets: drawBets },
@@ -286,7 +302,7 @@ router.get('/leaderboard/round/:round', (req, res) => {
       u.id, u.name, u.avatar, u.favorite_club,
       COALESCE(ROUND(SUM(p.net_points), 2), 0.00) as round_points,
       COUNT(CASE WHEN p.net_points > 0 THEN 1 END) as round_wins,
-      COUNT(p.id) as round_bets
+      COUNT(CASE WHEN p.choice != 'MISSED' THEN 1 END) as round_bets
     FROM league_members lm
     JOIN users u ON lm.user_id = u.id
     LEFT JOIN predictions p ON p.user_id = u.id AND p.league_id = ?
@@ -295,6 +311,13 @@ router.get('/leaderboard/round/:round', (req, res) => {
     GROUP BY u.id
     ORDER BY round_points DESC, round_wins DESC
   `).all(leagueId, round, leagueId);
+
+  // Sanitizar avatares
+  for (const r of roundResults) {
+    if (!r.avatar || r.avatar.includes('Ã') || r.avatar.includes('ǟ') || r.avatar.length > 4) {
+      r.avatar = CLUB_AVATARS[r.favorite_club] || '⚽';
+    }
+  }
 
   res.json({ round, leaderboard: roundResults });
 });
@@ -305,10 +328,11 @@ router.get('/leaderboard/general', (req, res) => {
   const leaders = db.prepare(`
     SELECT 
       u.id, u.name, u.avatar, u.favorite_club, lm.balance,
-      COUNT(p.id) as total_bets,
+      COUNT(CASE WHEN p.choice != 'MISSED' THEN 1 END) as total_bets,
       COUNT(CASE WHEN p.net_points > 0 THEN 1 END) as wins,
       CASE 
-        WHEN COUNT(p.id) > 0 THEN ROUND((COUNT(CASE WHEN p.net_points > 0 THEN 1 END) * 100.0) / COUNT(p.id), 1)
+        WHEN COUNT(CASE WHEN p.choice != 'MISSED' THEN 1 END) > 0 THEN 
+          ROUND((COUNT(CASE WHEN p.net_points > 0 THEN 1 END) * 100.0) / COUNT(CASE WHEN p.choice != 'MISSED' THEN 1 END), 1)
         ELSE 0.0
       END as efficiency_pct
     FROM league_members lm
@@ -319,15 +343,21 @@ router.get('/leaderboard/general', (req, res) => {
     ORDER BY lm.balance DESC, efficiency_pct DESC
   `).all(leagueId, leagueId);
 
+  // Sanitizar avatares
+  for (const l of leaders) {
+    if (!l.avatar || l.avatar.includes('Ã') || l.avatar.includes('ǟ') || l.avatar.length > 4) {
+      l.avatar = CLUB_AVATARS[l.favorite_club] || '⚽';
+    }
+  }
+
   res.json(leaders);
 });
 
 // 9. Atualizar clube
 router.post('/users/update-club', (req, res) => {
   const { userId, clubId } = req.body;
-  if (!userId || !clubId) return res.status(400).json({ error: 'ParÃƒÆ’Ã‚Â¢metros em falta' });
-  const clubAvatars = { SCP: 'ÃƒÂ°Ã…Â¸Ã‚Â¦Ã‚Â', SLB: 'ÃƒÂ°Ã…Â¸Ã‚Â¦Ã¢â‚¬Â¦', FCP: 'ÃƒÂ°Ã…Â¸Ã‚ÂÃ¢â‚¬Â°', SCB: 'ÃƒÂ¢Ã…Â¡Ã¢â‚¬ÂÃƒÂ¯Ã‚Â¸Ã‚Â', VSC: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â', GOLD: 'ÃƒÂ¢Ã…Â¡Ã‚Â¡' };
-  const avatar = clubAvatars[clubId] || 'ÃƒÂ¢Ã…Â¡Ã‚Â½';
+  if (!userId || !clubId) return res.status(400).json({ error: 'Parâmetros em falta' });
+  const avatar = CLUB_AVATARS[clubId] || '⚽';
   db.prepare('UPDATE users SET favorite_club = ?, avatar = ? WHERE id = ?').run(clubId, avatar, userId);
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   res.json(user);
