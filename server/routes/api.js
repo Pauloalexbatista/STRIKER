@@ -122,29 +122,46 @@ router.get('/leagues/my', (req, res) => {
   const userId = req.query.userId;
   if (!userId) return res.json([]);
 
-  const leagues = db.prepare(`
-    SELECT 
-      l.*,
-      COALESCE((
-        SELECT ROUND(SUM(p.net_points), 2)
-        FROM predictions p
-        JOIN games g ON p.game_id = g.id AND g.status = 'FINISHED'
-        WHERE p.user_id = lm.user_id AND p.league_id = l.id
-      ), 0.00) + COALESCE((
-        SELECT ROUND(SUM(rb.bonus_points), 2)
-        FROM round_bonuses rb
-        WHERE rb.user_id = lm.user_id AND rb.league_id = l.id
-      ), 0.00) as user_balance,
-      (SELECT COUNT(*) FROM league_members WHERE league_id = l.id) as members_count
-    FROM league_members lm
-    JOIN leagues l ON lm.league_id = l.id
-    WHERE lm.user_id = ?
-    ORDER BY l.created_at ASC
-  `).all(userId);
+  try {
+    const leagues = db.prepare(`
+      SELECT 
+        l.*,
+        lm.balance as user_balance,
+        (SELECT COUNT(*) FROM league_members WHERE league_id = l.id) as members_count
+      FROM league_members lm
+      JOIN leagues l ON lm.league_id = l.id
+      WHERE lm.user_id = ?
+      ORDER BY l.created_at ASC
+    `).all(userId);
 
-  const createdCount = db.prepare('SELECT COUNT(*) as count FROM leagues WHERE creator_id = ?').get(userId).count;
+    for (const league of leagues) {
+      try {
+        const sumRow = db.prepare(`
+          SELECT COALESCE(ROUND(SUM(p.net_points), 2), 0.00) as total
+          FROM predictions p
+          JOIN games g ON p.game_id = g.id AND g.status = 'FINISHED'
+          WHERE p.user_id = ? AND (p.league_id = ? OR p.league_id IS NULL)
+        `).get(userId, league.id);
 
-  res.json({ leagues, createdCount, maxAllowed: 3 });
+        let bonus = 0;
+        try {
+          const bRow = db.prepare('SELECT COALESCE(ROUND(SUM(bonus_points), 2), 0.00) as total FROM round_bonuses WHERE user_id = ? AND league_id = ?').get(userId, league.id);
+          if (bRow) bonus = bRow.total;
+        } catch {}
+
+        if (sumRow) {
+          league.user_balance = Number((sumRow.total + bonus).toFixed(2));
+        }
+      } catch (e) {}
+    }
+
+    const createdCount = db.prepare('SELECT COUNT(*) as count FROM leagues WHERE creator_id = ?').get(userId).count;
+
+    res.json({ leagues, createdCount, maxAllowed: 3 });
+  } catch (err) {
+    console.error('Error fetching leagues:', err);
+    res.status(500).json({ error: 'Erro ao carregar campeonatos' });
+  }
 });
 
 // 5. Obter jogos da jornada (adaptados à liga ativa)
@@ -333,45 +350,58 @@ router.get('/leaderboard/round/:round', (req, res) => {
 
 router.get('/leaderboard/general', (req, res) => {
   const leagueId = req.query.leagueId;
+  if (!leagueId) return res.json([]);
 
-  const leaders = db.prepare(`
-    SELECT 
-      u.id, u.name, u.avatar, u.favorite_club,
-      COALESCE((
-        SELECT ROUND(SUM(p.net_points), 2)
-        FROM predictions p
-        JOIN games g ON p.game_id = g.id AND g.status = 'FINISHED'
-        WHERE p.user_id = u.id AND p.league_id = lm.league_id
-      ), 0.00) + COALESCE((
-        SELECT ROUND(SUM(rb.bonus_points), 2)
-        FROM round_bonuses rb
-        WHERE rb.user_id = u.id AND rb.league_id = lm.league_id
-      ), 0.00) as balance,
-      COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND g.status = 'FINISHED' THEN p.game_id END) as total_bets,
-      COUNT(DISTINCT CASE WHEN p.net_points > 0 AND g.status = 'FINISHED' THEN p.game_id END) as wins,
-      CASE 
-        WHEN COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND g.status = 'FINISHED' THEN p.game_id END) > 0 THEN 
-          ROUND((COUNT(DISTINCT CASE WHEN p.net_points > 0 AND g.status = 'FINISHED' THEN p.game_id END) * 100.0) / 
-          COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND g.status = 'FINISHED' THEN p.game_id END), 1)
-        ELSE 0.0
-      END as efficiency_pct
-    FROM league_members lm
-    JOIN users u ON lm.user_id = u.id
-    LEFT JOIN predictions p ON p.user_id = u.id AND p.league_id = lm.league_id
-    LEFT JOIN games g ON p.game_id = g.id
-    WHERE lm.league_id = ?
-    GROUP BY u.id
-    ORDER BY balance DESC, efficiency_pct DESC
-  `).all(leagueId);
+  try {
+    const members = db.prepare(`
+      SELECT u.id, u.name, u.avatar, u.favorite_club, lm.balance
+      FROM league_members lm
+      JOIN users u ON lm.user_id = u.id
+      WHERE lm.league_id = ?
+    `).all(leagueId);
 
-  // Sanitizar avatares
-  for (const l of leaders) {
-    if (!l.avatar || l.avatar.includes('Ã') || l.avatar.includes('ǟ') || l.avatar.length > 4) {
-      l.avatar = CLUB_AVATARS[l.favorite_club] || '⚽';
+    for (const m of members) {
+      try {
+        const stats = db.prepare(`
+          SELECT 
+            COALESCE(ROUND(SUM(p.net_points), 2), 0.00) as balance,
+            COUNT(DISTINCT CASE WHEN p.choice != 'MISSED' AND g.status = 'FINISHED' THEN p.game_id END) as total_bets,
+            COUNT(DISTINCT CASE WHEN p.net_points > 0 AND g.status = 'FINISHED' THEN p.game_id END) as wins
+          FROM predictions p
+          JOIN games g ON p.game_id = g.id
+          WHERE p.user_id = ? AND (p.league_id = ? OR p.league_id IS NULL)
+        `).get(m.id, leagueId);
+
+        let bonus = 0;
+        try {
+          const bRow = db.prepare('SELECT COALESCE(ROUND(SUM(bonus_points), 2), 0.00) as total FROM round_bonuses WHERE user_id = ? AND league_id = ?').get(m.id, leagueId);
+          if (bRow) bonus = bRow.total;
+        } catch {}
+
+        if (stats) {
+          m.balance = Number((stats.balance + bonus).toFixed(2));
+          m.total_bets = stats.total_bets;
+          m.wins = stats.wins;
+          m.efficiency_pct = m.total_bets > 0 ? Number(((m.wins * 100.0) / m.total_bets).toFixed(1)) : 0.0;
+        }
+      } catch (err) {}
     }
-  }
 
-  res.json(leaders);
+    // Ordenar decrescente pelo saldo real em tempo real
+    members.sort((a, b) => (b.balance - a.balance) || (b.efficiency_pct - a.efficiency_pct));
+
+    // Sanitizar avatares
+    for (const l of members) {
+      if (!l.avatar || l.avatar.includes('Ã') || l.avatar.includes('ǟ') || l.avatar.length > 4) {
+        l.avatar = CLUB_AVATARS[l.favorite_club] || '⚽';
+      }
+    }
+
+    res.json(members);
+  } catch (err) {
+    console.error('Error in /leaderboard/general:', err);
+    res.status(500).json({ error: 'Erro ao carregar classificação geral' });
+  }
 });
 
 // 9. Atualizar clube
