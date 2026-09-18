@@ -158,6 +158,9 @@ export function seedData() {
       db.prepare("UPDATE predictions SET points_won = 0.00, net_points = -2.00 WHERE game_id = ? AND choice = 'MISSED'").run(fg.id);
     }
 
+    // Atribuir bónus de campeão à vencedora da Jornada 6 (Anne)
+    EconomyService.checkAndAwardRoundBonus(6);
+
     // Recalcular saldos de forma determinística
     EconomyService.recalculateAllBalances();
     console.log('✅ Base de dados calibrada, Jogos J6/J7 confirmados e saldos recalculados com sucesso!');

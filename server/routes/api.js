@@ -590,7 +590,9 @@ router.get('/leaderboard/round/:round/user/:userId', (req, res) => {
 
   let bonusPoints = 0;
   try {
-    const b = db.prepare('SELECT bonus_points FROM round_bonuses WHERE league_id = ? AND round = ? AND user_id = ?').get(leagueId, round, userId);
+    const b = leagueId 
+      ? db.prepare('SELECT bonus_points FROM round_bonuses WHERE league_id = ? AND round = ? AND user_id = ?').get(leagueId, round, userId)
+      : db.prepare('SELECT bonus_points FROM round_bonuses WHERE round = ? AND user_id = ?').get(round, userId);
     if (b) bonusPoints = b.bonus_points;
   } catch (e) {}
 

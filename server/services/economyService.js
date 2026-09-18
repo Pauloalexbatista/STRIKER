@@ -115,7 +115,11 @@ export const EconomyService = {
       }
 
       // Membros da Liga que NÃO apostaram (-2 pontos por falta de aposta)
-      const allMembers = db.prepare('SELECT user_id FROM league_members WHERE league_id = ?').all(leagueId);
+      // Apenas membros que já pertenciam à liga ANTES do jogo começar podem ser penalizados por falta!
+      const allMembers = db.prepare(`
+        SELECT user_id FROM league_members 
+        WHERE league_id = ? AND (joined_at <= ? OR joined_at IS NULL)
+      `).all(leagueId, game.kickoff_time);
       const bettorIds = new Set(bets.map(b => b.user_id));
 
       for (const member of allMembers) {
@@ -161,19 +165,12 @@ export const EconomyService = {
       return;
     }
 
-    console.log(`🏆 Jornada ${round} 100% concluída! A verificar campeões de jornada...`);
+    console.log(`🏆 Jornada ${round} 100% concluída! A apurar campeão(ões) de jornada...`);
     const allLeagues = db.prepare('SELECT id FROM leagues').all();
     const now = new Date().toISOString();
 
     for (const { id: leagueId } of allLeagues) {
-      const alreadyAwarded = db.prepare(`
-        SELECT COUNT(*) as count FROM round_bonuses WHERE league_id = ? AND round = ?
-      `).get(leagueId, round).count;
-
-      if (alreadyAwarded > 0) {
-        continue;
-      }
-
+      // Calcular pontuações de todos os membros nesta jornada
       const roundScores = db.prepare(`
         SELECT 
           lm.user_id,
@@ -195,15 +192,37 @@ export const EconomyService = {
 
       const bestScore = roundScores[0].round_points;
       const winners = roundScores.filter(s => s.round_points === bestScore);
+      const winnerIds = new Set(winners.map(w => w.user_id));
 
-      for (const winner of winners) {
-        const bonusId = 'bonus_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-        db.prepare(`
-          INSERT INTO round_bonuses (id, league_id, round, user_id, bonus_points, created_at)
-          VALUES (?, ?, ?, ?, 3.00, ?)
-        `).run(bonusId, leagueId, round, winner.user_id, now);
+      // Obter bónus atuais para esta liga e jornada
+      const existingBonuses = db.prepare(`
+        SELECT user_id FROM round_bonuses WHERE league_id = ? AND round = ?
+      `).all(leagueId, round);
+      const existingWinnerIds = new Set(existingBonuses.map(b => b.user_id));
 
-        console.log(`⭐ Bónus de +3 pts atribuído a ${winner.user_id} na liga ${leagueId} (Jornada ${round})`);
+      // Se os bónus gravados não coincidirem exatamente com os vencedores reais:
+      let needsUpdate = existingBonuses.length !== winners.length;
+      if (!needsUpdate) {
+        for (const wId of winnerIds) {
+          if (!existingWinnerIds.has(wId)) {
+            needsUpdate = true;
+            break;
+          }
+        }
+      }
+
+      if (needsUpdate) {
+        db.prepare('DELETE FROM round_bonuses WHERE league_id = ? AND round = ?').run(leagueId, round);
+
+        for (const winner of winners) {
+          const bonusId = 'bonus_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+          db.prepare(`
+            INSERT INTO round_bonuses (id, league_id, round, user_id, bonus_points, created_at)
+            VALUES (?, ?, ?, ?, 3.00, ?)
+          `).run(bonusId, leagueId, round, winner.user_id, now);
+
+          console.log(`⭐ Bónus de +3 pts atribuído a ${winner.user_id} na liga ${leagueId} (Jornada ${round})`);
+        }
       }
 
       this.recalculateLeagueBalances(leagueId);
