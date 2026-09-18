@@ -161,6 +161,25 @@ export function seedData() {
     // Atribuir bónus de campeão à vencedora da Jornada 6 (Anne)
     EconomyService.checkAndAwardRoundBonus(6);
 
+    // Garantir explicitamente o bónus da Anne na J6
+    try {
+      const anneUser = db.prepare("SELECT id FROM users WHERE LOWER(name) = 'anne'").get();
+      if (anneUser) {
+        const anneLeagues = db.prepare('SELECT league_id FROM league_members WHERE user_id = ?').all(anneUser.id);
+        for (const { league_id } of anneLeagues) {
+          const hasB = db.prepare('SELECT COUNT(*) as c FROM round_bonuses WHERE user_id = ? AND round = 6 AND league_id = ?').get(anneUser.id, league_id)?.c;
+          if (!hasB) {
+            db.prepare(`
+              INSERT OR REPLACE INTO round_bonuses (id, league_id, round, user_id, bonus_points, created_at)
+              VALUES (?, ?, 6, ?, 3.00, datetime('now'))
+            `).run('bonus_j6_' + league_id + '_' + anneUser.id, league_id, anneUser.id);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Aviso bónus Anne:', e.message);
+    }
+
     // Recalcular saldos de forma determinística
     EconomyService.recalculateAllBalances();
     console.log('✅ Base de dados calibrada, Jogos J6/J7 confirmados e saldos recalculados com sucesso!');
