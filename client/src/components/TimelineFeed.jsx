@@ -1,14 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { GameCard } from './GameCard';
-import { fetchGames } from '../services/api';
+import { fetchGames, fetchCurrentRound } from '../services/api';
 import { useTheme, hexToRgba } from '../contexts/ThemeContext';
 import { ChevronLeft, ChevronRight, Calendar, RotateCw, Plus, Trophy } from 'lucide-react';
 
 export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) {
   const { currentUser, activeTheme } = useTheme();
-  const [round, setRound] = useState(6);
+  const [round, setRound] = useState(7);
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchCurrentRound().then(activeRnd => {
+      if (isMounted && activeRnd && typeof activeRnd === 'number') {
+        setRound(activeRnd);
+      }
+    });
+    return () => { isMounted = false; };
+  }, []);
 
   const loadGames = async (silent = false) => {
     try {

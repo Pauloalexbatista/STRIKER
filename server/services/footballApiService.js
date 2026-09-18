@@ -183,11 +183,17 @@ export const FootballApiService = {
   // Iniciar sincronização periódica a cada 1 minuto
   startAutoSync(intervalMinutes = 1) {
     console.log(`🤖 Robô de futebol automático ativado (intervalo: ${intervalMinutes}m)`);
-    // Sincroniza logo ao arrancar
-    this.syncMatchday(6);
+    const doSync = async () => {
+      try {
+        const { getCurrentRound } = await import('../routes/api.js');
+        const activeRound = getCurrentRound ? getCurrentRound() : 7;
+        await this.syncMatchday(activeRound);
+      } catch (err) {
+        console.warn('Erro no robô de auto-sync:', err.message);
+      }
+    };
 
-    setInterval(() => {
-      this.syncMatchday(6);
-    }, intervalMinutes * 60 * 1000);
+    doSync();
+    setInterval(doSync, intervalMinutes * 60 * 1000);
   }
 };

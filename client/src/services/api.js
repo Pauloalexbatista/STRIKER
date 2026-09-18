@@ -118,3 +118,23 @@ export async function fetchGeneralLeaderboard(leagueId = '') {
   const res = await fetch(`${BASE_URL}/leaderboard/general?leagueId=${leagueId}`);
   return res.json();
 }
+
+export async function fetchCurrentRound() {
+  try {
+    const res = await fetch(`${BASE_URL}/current-round`);
+    if (!res.ok) return 7;
+    const data = await res.json();
+    return data.round || 7;
+  } catch (err) {
+    console.warn('Erro ao obter jornada atual:', err);
+    return 7;
+  }
+}
+
+export async function fetchUserRoundAudit(round, userId, leagueId = '') {
+  const res = await fetch(`${BASE_URL}/leaderboard/round/${round}/user/${userId}?leagueId=${leagueId}`);
+  if (!res.ok) {
+    throw new Error('Erro ao carregar extrato da jornada');
+  }
+  return res.json();
+}

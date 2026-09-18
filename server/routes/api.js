@@ -256,9 +256,72 @@ router.get('/leagues/my', (req, res) => {
   }
 });
 
+
+// Função inteligente para calcular a jornada ativa por defeito
+export function getCurrentRound() {
+  try {
+    const now = new Date();
+    const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString();
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+
+    // 1. Se há algum jogo LIVE recente (iniciado nas últimas 4 horas)
+    const liveGame = db.prepare("SELECT round FROM games WHERE status = 'LIVE' AND kickoff_time >= ? ORDER BY kickoff_time DESC LIMIT 1").get(fourHoursAgo);
+    if (liveGame) return liveGame.round;
+
+    // 2. Obter todas as jornadas ordenadas
+    const rounds = db.prepare("SELECT DISTINCT round FROM games ORDER BY round ASC").all().map(r => r.round);
+    if (!rounds.length) return 7;
+
+    // Encontrar a última jornada que teve jogos terminados
+    let latestFinishedRound = null;
+    let lastFinishedTime = null;
+
+    for (const rnd of rounds) {
+      const games = db.prepare("SELECT status, kickoff_time FROM games WHERE round = ? ORDER BY kickoff_time DESC").all(rnd);
+      if (games.length > 0) {
+        const finishedCount = games.filter(g => g.status === 'FINISHED').length;
+        if (finishedCount === games.length) {
+          latestFinishedRound = rnd;
+          lastFinishedTime = new Date(games[0].kickoff_time);
+        }
+      }
+    }
+
+    // Encontrar a primeira jornada que tem jogos UPCOMING no futuro ou muito recentes
+    const upcomingGame = db.prepare("SELECT round, kickoff_time FROM games WHERE (status = 'UPCOMING' OR status = 'LIVE') AND kickoff_time >= ? ORDER BY kickoff_time ASC LIMIT 1").get(twoHoursAgo);
+
+    if (upcomingGame) {
+      const nextKickoff = new Date(upcomingGame.kickoff_time);
+      const hoursUntilNext = (nextKickoff.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+      if (latestFinishedRound && lastFinishedTime) {
+        const hoursSinceLast = (now.getTime() - lastFinishedTime.getTime()) / (1000 * 60 * 60);
+        // Se a jornada anterior terminou há menos de 20 horas E a próxima ainda está a mais de 24 horas:
+        // Mantém a jornada terminada para permitir aos jogadores verem o rescaldo
+        if (hoursSinceLast < 20 && hoursUntilNext > 24) {
+          return latestFinishedRound;
+        }
+      }
+      return upcomingGame.round;
+    }
+
+    return latestFinishedRound || rounds[rounds.length - 1];
+  } catch (err) {
+    console.error('Erro ao calcular jornada ativa:', err.message);
+    return 7;
+  }
+}
+
+// 4.1. Obter jornada ativa dinâmica
+router.get('/current-round', (req, res) => {
+  const round = getCurrentRound();
+  res.json({ round });
+});
+
 // 5. Obter jogos da jornada (adaptados à liga ativa)
 router.get('/games', async (req, res) => {
-  const round = req.query.round ? parseInt(req.query.round) : 6;
+  const defaultRound = getCurrentRound();
+  const round = req.query.round ? parseInt(req.query.round) : defaultRound;
   const userId = req.query.userId || '';
   const leagueId = req.query.leagueId || '';
 
@@ -424,29 +487,174 @@ router.get('/leaderboard/round/:round', (req, res) => {
   const round = parseInt(req.params.round);
   const leagueId = req.query.leagueId;
 
+  // Auto-verificar se a jornada fechou e atribuir bónus de campeão se aplicável
+  try {
+    EconomyService.checkAndAwardRoundBonus(round);
+  } catch (e) {
+    console.warn('Aviso ao verificar bónus de jornada:', e.message);
+  }
+
+  // Buscar resultados da jornada estritamente isolados para esta jornada (g.round = ?)
   const roundResults = db.prepare(`
     SELECT 
       u.id, u.name, u.avatar, u.favorite_club,
-      COALESCE(ROUND(SUM(p.net_points), 2), 0.00) as round_points,
-      COUNT(CASE WHEN p.net_points > 0 THEN 1 END) as round_wins,
-      COUNT(CASE WHEN p.choice != 'MISSED' THEN 1 END) as round_bets
+      COALESCE(ROUND(SUM(sub.net_points), 2), 0.00) as round_points,
+      COUNT(CASE WHEN sub.net_points > 0 THEN 1 END) as round_wins,
+      COUNT(CASE WHEN sub.choice != 'MISSED' THEN 1 END) as round_bets
     FROM league_members lm
     JOIN users u ON lm.user_id = u.id
-    LEFT JOIN predictions p ON p.user_id = u.id AND p.league_id = ?
-    LEFT JOIN games g ON p.game_id = g.id AND g.round = ? AND g.status = 'FINISHED'
+    LEFT JOIN (
+      SELECT p.user_id, p.choice, p.net_points
+      FROM predictions p
+      JOIN games g ON p.game_id = g.id
+      WHERE (p.league_id = ? OR p.league_id IS NULL)
+        AND g.round = ?
+        AND g.status = 'FINISHED'
+    ) sub ON u.id = sub.user_id
     WHERE lm.league_id = ?
     GROUP BY u.id
     ORDER BY round_points DESC, round_wins DESC
   `).all(leagueId, round, leagueId);
 
-  // Sanitizar avatares
+  // Buscar bónus atribuídos para esta jornada nesta liga
+  let bonuses = [];
+  try {
+    bonuses = db.prepare(`
+      SELECT user_id, bonus_points
+      FROM round_bonuses
+      WHERE league_id = ? AND round = ?
+    `).all(leagueId, round);
+  } catch (e) {}
+
+  const bonusMap = new Map(bonuses.map(b => [b.user_id, b.bonus_points]));
+
+  // Verificar se todos os jogos desta jornada estão FINISHED
+  const roundGamesStatus = db.prepare(`
+    SELECT 
+      COUNT(*) as total_games,
+      COUNT(CASE WHEN status = 'FINISHED' THEN 1 END) as finished_games
+    FROM games WHERE round = ?
+  `).get(round);
+
+  const isRoundComplete = Boolean(roundGamesStatus && roundGamesStatus.total_games > 0 && roundGamesStatus.total_games === roundGamesStatus.finished_games);
+
   for (const r of roundResults) {
+    r.bonus_points = bonusMap.get(r.id) || 0;
+    r.matches_points = r.round_points;
+    r.total_round_points = Number((r.round_points + r.bonus_points).toFixed(2));
+    r.is_round_winner = r.bonus_points > 0;
+
     if (!r.avatar || r.avatar.includes('Ã') || r.avatar.includes('ǟ') || r.avatar.length > 4) {
       r.avatar = CLUB_AVATARS[r.favorite_club] || '⚽';
     }
   }
 
-  res.json({ round, leaderboard: roundResults });
+  // Se houver bónus atribuído, reordenar pelo total com bónus
+  roundResults.sort((a, b) => (b.total_round_points - a.total_round_points) || (b.round_wins - a.round_wins));
+
+  res.json({
+    round,
+    isComplete: isRoundComplete,
+    totalGames: roundGamesStatus?.total_games || 0,
+    finishedGames: roundGamesStatus?.finished_games || 0,
+    leaderboard: roundResults
+  });
+});
+
+// 8.1. Auditoria / Extrato de Apostas da Jornada por Utilizador (Ponto 4)
+router.get('/leaderboard/round/:round/user/:userId', (req, res) => {
+  const round = parseInt(req.params.round);
+  const userId = req.params.userId;
+  const leagueId = req.query.leagueId;
+
+  const user = db.prepare('SELECT id, name, avatar, favorite_club FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: 'Utilizador não encontrado' });
+
+  if (!user.avatar || user.avatar.includes('Ã') || user.avatar.includes('ǟ') || user.avatar.length > 4) {
+    user.avatar = CLUB_AVATARS[user.favorite_club] || '⚽';
+  }
+
+  const games = db.prepare(`
+    SELECT 
+      g.id, g.round, g.kickoff_time, g.status, g.home_score, g.away_score, g.result,
+      hc.name as home_name, hc.short_name as home_short,
+      ac.name as away_name, ac.short_name as away_short,
+      p.choice, p.net_points
+    FROM games g
+    JOIN clubs hc ON g.home_club_id = hc.id
+    JOIN clubs ac ON g.away_club_id = ac.id
+    LEFT JOIN predictions p ON p.game_id = g.id AND p.user_id = ? AND (p.league_id = ? OR p.league_id IS NULL)
+    WHERE g.round = ?
+    ORDER BY g.kickoff_time ASC
+  `).all(userId, leagueId, round);
+
+  let bonusPoints = 0;
+  try {
+    const b = db.prepare('SELECT bonus_points FROM round_bonuses WHERE league_id = ? AND round = ? AND user_id = ?').get(leagueId, round, userId);
+    if (b) bonusPoints = b.bonus_points;
+  } catch (e) {}
+
+  let matchesPoints = 0;
+  let hits = 0;
+  let misses = 0;
+  let missedAbsences = 0;
+  let pendingCount = 0;
+
+  const auditGames = games.map(g => {
+    let outcome = 'PENDING';
+    let pts = 0;
+
+    if (g.status === 'FINISHED') {
+      if (g.choice === 'MISSED') {
+        outcome = 'MISSED'; // Falta de aposta (-2 pts)
+        pts = -2;
+        missedAbsences++;
+      } else if (g.choice === g.result) {
+        outcome = 'HIT'; // Acertou (+3 pts)
+        pts = 3;
+        hits++;
+      } else {
+        outcome = 'MISS'; // Errou (-1 pt)
+        pts = -1;
+        misses++;
+      }
+      matchesPoints += pts;
+    } else {
+      pendingCount++;
+    }
+
+    return {
+      gameId: g.id,
+      homeShort: g.home_short,
+      homeScore: g.home_score,
+      awayShort: g.away_short,
+      awayScore: g.away_score,
+      kickoffTime: g.kickoff_time,
+      status: g.status,
+      result: g.result,
+      userChoice: g.choice || null,
+      outcome,
+      points: g.status === 'FINISHED' ? pts : null
+    };
+  });
+
+  res.json({
+    user,
+    round,
+    summary: {
+      totalGames: games.length,
+      finishedGames: games.length - pendingCount,
+      pendingGames: pendingCount,
+      hits,
+      misses,
+      missedAbsences,
+      matchesPoints: Number(matchesPoints.toFixed(2)),
+      bonusPoints: Number(bonusPoints.toFixed(2)),
+      totalPoints: Number((matchesPoints + bonusPoints).toFixed(2)),
+      isChampion: bonusPoints > 0
+    },
+    games: auditGames
+  });
 });
 
 router.get('/leaderboard/general', (req, res) => {
@@ -474,15 +682,20 @@ router.get('/leaderboard/general', (req, res) => {
         `).get(m.id, leagueId);
 
         let bonus = 0;
+        let roundBonusesCount = 0;
         try {
-          const bRow = db.prepare('SELECT COALESCE(ROUND(SUM(bonus_points), 2), 0.00) as total FROM round_bonuses WHERE user_id = ? AND league_id = ?').get(m.id, leagueId);
-          if (bRow) bonus = bRow.total;
+          const bRow = db.prepare('SELECT COALESCE(ROUND(SUM(bonus_points), 2), 0.00) as total, COUNT(*) as count FROM round_bonuses WHERE user_id = ? AND league_id = ?').get(m.id, leagueId);
+          if (bRow) {
+            bonus = bRow.total;
+            roundBonusesCount = bRow.count;
+          }
         } catch {}
 
         if (stats) {
           m.balance = Number((stats.balance + bonus).toFixed(2));
           m.total_bets = stats.total_bets;
           m.wins = stats.wins;
+          m.round_bonuses_count = roundBonusesCount;
           m.efficiency_pct = m.total_bets > 0 ? Number(((m.wins * 100.0) / m.total_bets).toFixed(1)) : 0.0;
         }
       } catch (err) {}
@@ -520,6 +733,15 @@ router.post('/users/update-club', (req, res) => {
 router.get('/admin/fix-balances', (req, res) => {
   EconomyService.recalculateAllBalances();
   res.json({ success: true, message: 'Todos os saldos foram recalculados com sucesso!' });
+});
+
+router.all('/admin/award-bonuses', (req, res) => {
+  const rounds = db.prepare("SELECT DISTINCT round FROM games ORDER BY round ASC").all().map(r => r.round);
+  for (const rnd of rounds) {
+    EconomyService.checkAndAwardRoundBonus(rnd);
+  }
+  EconomyService.recalculateAllBalances();
+  res.json({ success: true, message: 'Verificação e atribuição de bónus de jornadas concluída!' });
 });
 
 router.all('/admin/sync-api', async (req, res) => {
