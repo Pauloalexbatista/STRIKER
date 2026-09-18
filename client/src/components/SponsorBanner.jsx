@@ -3,6 +3,32 @@ import { useTheme, hexToRgba } from '../contexts/ThemeContext';
 import { Megaphone } from 'lucide-react';
 
 const FUNNY_SPONSORS = [
+  { slogan: 'Não pergunte o bicho, que o sabor é a sério!', sponsor: 'Salsichas Mistério' },
+  { slogan: 'Lava a caspa e o cabelo fica na tigela!', sponsor: 'Champô Calvice Bela' },
+  { slogan: 'Tapa a humidade e a parede da vizinha!', sponsor: 'Tintas Maravilha' },
+  { slogan: 'Entra a cantar e sai ao murro!', sponsor: 'Cerveja Mija-Burro' },
+  { slogan: 'Arde que se farta, mas alivia o tormento grotesco!', sponsor: 'Pomada Rabo Fresco' },
+  { slogan: 'Se não vê ao perto, com a armação se safa!', sponsor: 'Óculos Fundo de Garrafa' },
+  { slogan: 'Carne tenrinha e dedo fatiado!', sponsor: 'Talho O Amputado' },
+  { slogan: 'Tome à noite e acorde reformado!', sponsor: 'Pílulas Sono Pesado' },
+  { slogan: 'Mata a sede e arranca as amígdalas inchadas!', sponsor: 'Água das Pedras Roladas' },
+  { slogan: 'Se não brilha a mesa, escorrega o pudim!', sponsor: 'Cera para Madeiras Cupim' },
+  { slogan: 'Cheira a alfazema como se pinho não fosse!', sponsor: 'Colónia Sovaco Doce' },
+  { slogan: 'O carro não anda, mas a pintura não mancha!', sponsor: 'Oficina Mecânica Desmancha' },
+  { slogan: 'Se não lava os dentes, pelo menos come pelas berças!', sponsor: 'Dentífrico Moelas' },
+  { slogan: 'Frita o peixe, o bife e a toalha de agulha!', sponsor: 'Azeite Fagulha' },
+  { slogan: 'Mastigue devagar, senão perde o molar!', sponsor: 'Pastilhas Cimento Forte' },
+  { slogan: 'Mata o cheiro e quem tiver ao lado do fogão!', sponsor: 'Desodorizante Furacão' },
+  { slogan: 'Apertam à frente, mas a sola não se gasta na valeta!', sponsor: 'Calçados Maneta' },
+  { slogan: 'Para a tosse passar e a garganta arranhar!', sponsor: 'Chá de Ortiga Brava' },
+  { slogan: 'Cá o esperamos, de pernas estendidas!', sponsor: 'Agência Funerária Boas-Vindas' },
+  { slogan: 'Limpa à primeira e o resto aguenta!', sponsor: 'Papel Higiénico Lixa 80' },
+  { slogan: 'Estalam no dente como se fossem um tiro!', sponsor: 'Biscoitos Tio Belmiro' },
+  { slogan: 'Engula à força e desmaie três dias!', sponsor: 'Xarope Limpa-Vias' },
+  { slogan: 'Se não for de porco, é de cabra careca!', sponsor: 'Presunto Perna Seca' },
+  { slogan: 'Durma direito ou arrisque um ataque de lombrigue!', sponsor: 'Colchões Tabique' },
+  { slogan: 'Se a sua equipa estiver a perder, beba para esquecer!', sponsor: 'Vinho Afoga-Mágoas' },
+  { slogan: 'É só empurrar com o dedo!', sponsor: 'Supositórios Alfredo' },
   { slogan: 'De inverno ou de verão, gelados de alcatrão!', sponsor: 'Geladaria Asfalto Doce' },
   { slogan: 'A sua saúde está primeiro, beba água do chuveiro!', sponsor: 'Termas da Canalização' },
   { slogan: 'Se a azia não passar, tente o árbitro culpar!', sponsor: 'Clínica do Apito Amigo' },
@@ -12,7 +38,7 @@ const FUNNY_SPONSORS = [
 
 export function SponsorBanner({ title = 'Patrocínio da jornada:', isFooter = false }) {
   const { activeTheme } = useTheme();
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => Math.floor(Math.random() * FUNNY_SPONSORS.length));
   const [fade, setFade] = useState(true);
 
   useEffect(() => {
