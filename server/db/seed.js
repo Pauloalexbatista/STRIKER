@@ -1,4 +1,4 @@
-﻿import { db } from './database.js';
+import { db } from './database.js';
 import { EconomyService } from '../services/economyService.js';
 
 export function seedData() {
@@ -70,9 +70,66 @@ export function seedData() {
     console.error('Erro na limpeza de avatares:', err);
   }
 
-  // 3. Eliminar previsões duplicadas na base de dados
+  // 3. Garantir que os 9 Jogos Oficiais da Jornada 6 existem e estão 100% FINALIZADOS
   try {
-    // Eliminar previsões órfãs sem league_id quando já existe com league_id
+    const jornada6Official = [
+      { id: 'g_j6_cdn_alv', round: 6, home: 'CDN', away: 'ALV', kickoff: '2026-09-12T14:30:00Z', homeScore: 1, awayScore: 3 },
+      { id: 'g_j6_cpac_fcp', round: 6, home: 'CPAC', away: 'FCP', kickoff: '2026-09-12T17:00:00Z', homeScore: 1, awayScore: 4 },
+      { id: 'g_j6_acv_vsc', round: 6, home: 'ACV', away: 'VSC', kickoff: '2026-09-12T19:30:00Z', homeScore: 2, awayScore: 1 },
+      { id: 'g_j6_fca_cdsc', round: 6, home: 'FCA', away: 'CDSC', kickoff: '2026-09-13T17:00:00Z', homeScore: 1, awayScore: 2 },
+      { id: 'g_j6_slb_gvc', round: 6, home: 'SLB', away: 'GVC', kickoff: '2026-09-13T17:00:00Z', homeScore: 3, awayScore: 1 },
+      { id: 'g_j6_fcf_scp', round: 6, home: 'FCF', away: 'SCP', kickoff: '2026-09-13T19:30:00Z', homeScore: 1, awayScore: 1 },
+      { id: 'g_j6_rav_cfea', round: 6, home: 'RAV', away: 'CFEA', kickoff: '2026-09-14T17:45:00Z', homeScore: 3, awayScore: 3 },
+      { id: 'g_j6_mfc_csm', round: 6, home: 'MFC', away: 'CSM', kickoff: '2026-09-14T19:15:00Z', homeScore: 3, awayScore: 1 },
+      { id: 'g_j6_scb_est', round: 6, home: 'SCB', away: 'EST', kickoff: '2026-09-14T19:45:00Z', homeScore: 1, awayScore: 0 }
+    ];
+
+    for (const g of jornada6Official) {
+      const existing = db.prepare('SELECT * FROM games WHERE id = ?').get(g.id);
+      if (!existing) {
+        db.prepare(`
+          INSERT INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
+          VALUES (?, ?, ?, ?, ?, 'FINISHED', ?, ?, ?)
+        `).run(g.id, g.round, g.home, g.away, g.kickoff, g.homeScore, g.awayScore, g.homeScore > g.awayScore ? 'HOME' : g.awayScore > g.homeScore ? 'AWAY' : 'DRAW');
+      }
+      // Se não estava como FINISHED com estes resultados, liquidar oficialmente
+      if (!existing || existing.status !== 'FINISHED' || existing.home_score !== g.homeScore || existing.away_score !== g.awayScore) {
+        EconomyService.settleGame(g.id, g.homeScore, g.awayScore);
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao garantir jogos da Jornada 6:', err);
+  }
+
+  // 4. Garantir que os 9 Jogos da Jornada 7 existem na BD
+  try {
+    const jornada7Games = [
+      { id: 'g_j7_scp_mfc', round: 7, home: 'SCP', away: 'MFC', kickoff: '2026-09-19T17:00:00Z' },
+      { id: 'g_j7_fcp_acv', round: 7, home: 'FCP', away: 'ACV', kickoff: '2026-09-19T19:30:00Z' },
+      { id: 'g_j7_alv_cpac', round: 7, home: 'ALV', away: 'CPAC', kickoff: '2026-09-20T14:30:00Z' },
+      { id: 'g_j7_cdsc_slb', round: 7, home: 'CDSC', away: 'SLB', kickoff: '2026-09-20T17:00:00Z' },
+      { id: 'g_j7_vsc_scb', round: 7, home: 'VSC', away: 'SCB', kickoff: '2026-09-20T19:30:00Z' },
+      { id: 'g_j7_gvc_fca', round: 7, home: 'GVC', away: 'FCA', kickoff: '2026-09-21T18:00:00Z' },
+      { id: 'g_j7_csm_rav', round: 7, home: 'CSM', away: 'RAV', kickoff: '2026-09-21T18:45:00Z' },
+      { id: 'g_j7_est_fcf', round: 7, home: 'EST', away: 'FCF', kickoff: '2026-09-21T20:15:00Z' },
+      { id: 'g_j7_cfea_cdn', round: 7, home: 'CFEA', away: 'CDN', kickoff: '2026-09-21T20:45:00Z' }
+    ];
+
+    for (const g of jornada7Games) {
+      const existing = db.prepare('SELECT id FROM games WHERE id = ?').get(g.id);
+      if (!existing) {
+        db.prepare(`
+          INSERT INTO games (id, round, home_club_id, away_club_id, kickoff_time, status)
+          VALUES (?, ?, ?, ?, ?, 'UPCOMING')
+        `).run(g.id, g.round, g.home, g.away, g.kickoff);
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao garantir jogos da Jornada 7:', err);
+  }
+
+  // 5. Eliminar previsões duplicadas na base de dados e recalcular pontuações
+  try {
     db.exec(`
       DELETE FROM predictions 
       WHERE league_id IS NULL 
@@ -84,7 +141,6 @@ export function seedData() {
       );
     `);
 
-    // Eliminar quaisquer duplicatas restantes por user_id e game_id
     db.exec(`
       DELETE FROM predictions 
       WHERE rowid NOT IN (
@@ -94,7 +150,7 @@ export function seedData() {
       );
     `);
 
-    // Calibrar pontuações de jogos FINISHED (+3, -1, -2)
+    // Calibrar pontuações de todos os jogos FINISHED (+3, -1, -2)
     const finishedGames = db.prepare("SELECT id, result FROM games WHERE status = 'FINISHED'").all();
     for (const fg of finishedGames) {
       db.prepare("UPDATE predictions SET points_won = 3.00, net_points = 3.00 WHERE game_id = ? AND choice = ? AND choice != 'MISSED'").run(fg.id, fg.result);
@@ -104,7 +160,7 @@ export function seedData() {
 
     // Recalcular saldos de forma determinística
     EconomyService.recalculateAllBalances();
-    console.log('✅ Base de dados desduplicada e saldos recalculados com sucesso!');
+    console.log('✅ Base de dados calibrada, Jogos J6/J7 confirmados e saldos recalculados com sucesso!');
   } catch (err) {
     console.error('Erro na limpeza/recalculo de previsões:', err);
   }

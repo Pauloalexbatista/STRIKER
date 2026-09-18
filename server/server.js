@@ -51,9 +51,15 @@ app.get('*', (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`âš½ STRIKER Backend a rodar em http://0.0.0.0:${PORT}`);
-  // Iniciar sincronizaÃ§Ã£o automÃ¡tica com a API oficial
+app.listen(PORT, '0.0.0.0', async () => {
+  console.log(`⚽ STRIKER Backend a rodar em http://0.0.0.0:${PORT}`);
+  // Iniciar sincronização automática periódica
   FootballApiService.startAutoSync(1);
+  try {
+    await FootballApiService.syncMatchday(6);
+    await FootballApiService.syncMatchday(7);
+  } catch (e) {
+    console.warn('Aviso no sync inicial:', e.message);
+  }
 });
 

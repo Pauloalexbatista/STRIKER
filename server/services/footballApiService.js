@@ -188,6 +188,15 @@ export const FootballApiService = {
         const { getCurrentRound } = await import('../routes/api.js');
         const activeRound = getCurrentRound ? getCurrentRound() : 7;
         await this.syncMatchday(activeRound);
+
+        // Se a jornada 6 tiver algum jogo por finalizar, sincroniza também a jornada 6
+        if (activeRound > 6) {
+          const { db } = await import('../db/database.js');
+          const pending = db.prepare("SELECT count(*) as c FROM games WHERE round = 6 AND status != 'FINISHED'").get()?.c;
+          if (pending > 0) {
+            await this.syncMatchday(6);
+          }
+        }
       } catch (err) {
         console.warn('Erro no robô de auto-sync:', err.message);
       }
