@@ -78,11 +78,11 @@ export function SponsorBanner({ title = 'Patrocínio da jornada:', isFooter = fa
         }}
       >
         <div className={`transition-opacity duration-300 flex-1 truncate ${fade ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="text-xs font-bold text-white font-rajdhani tracking-wide truncate">
-            &ldquo;{current.slogan}&rdquo;
+          <div className="text-xs font-bold font-rajdhani tracking-wide truncate" style={{ color: activeTheme?.primary || '#ffd700' }}>
+            {current.sponsor}
           </div>
-          <div className="text-[9px] text-slate-400 font-mono -mt-0.5 truncate">
-            &mdash; {current.sponsor}
+          <div className="text-[10px] text-slate-200 font-medium italic -mt-0.5 truncate">
+            &ldquo;{current.slogan}&rdquo;
           </div>
         </div>
 
