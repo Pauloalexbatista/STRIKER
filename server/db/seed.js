@@ -110,10 +110,10 @@ export function seedData() {
       if (m.round === 6) {
         const existing = db.prepare('SELECT id FROM games WHERE id = ?').get(m.id);
         if (!existing) {
-          insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score, m.away_score, m.result);
+          insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score ?? null, m.away_score ?? null, m.result ?? null);
         }
       } else {
-        insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score, m.away_score, m.result);
+        insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score ?? null, m.away_score ?? null, m.result ?? null);
         countInserted++;
       }
     }

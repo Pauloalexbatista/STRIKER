@@ -901,6 +901,67 @@ router.post('/users/update-club', (req, res) => {
 
 // 10. Sincronizar API de futebol
 // Rota utilitária para forçar recálculo e saneamento imediato de saldos
+router.all('/admin/force-reset', async (req, res) => {
+  const steps = [];
+  try {
+    try {
+      db.exec('PRAGMA foreign_keys = OFF');
+      steps.push('fk_off');
+    } catch (e) { steps.push({ fk_off_err: e.message }); }
+
+    const dp = db.prepare("DELETE FROM predictions WHERE game_id NOT LIKE 'g_j6_%'").run();
+    steps.push({ deletedPredictions: dp.changes });
+
+    const dbn = db.prepare("DELETE FROM round_bonuses WHERE round != 6").run();
+    steps.push({ deletedBonuses: dbn.changes });
+
+    const dg = db.prepare("DELETE FROM games WHERE round != 6").run();
+    steps.push({ deletedGames: dg.changes });
+
+    try {
+      db.exec('PRAGMA foreign_keys = ON');
+      steps.push('fk_on');
+    } catch (e) { steps.push({ fk_on_err: e.message }); }
+
+    const insert = db.prepare(`
+      INSERT OR REPLACE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    let insCount = 0;
+    for (const m of OFFICIAL_CALENDAR) {
+      if (m.round !== 6) {
+        insert.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score ?? null, m.away_score ?? null, m.result ?? null);
+        insCount++;
+      }
+    }
+    steps.push({ insertedGames: insCount });
+
+    try {
+      await FootballApiService.syncMatchday(7);
+      steps.push('sync_j7_done');
+    } catch (e) {
+      steps.push({ sync_j7_err: e.message });
+    }
+
+    try {
+      EconomyService.recalculateAllBalances();
+      steps.push('balances_done');
+    } catch (e) {
+      steps.push({ balances_err: e.message });
+    }
+
+    const j6Count = db.prepare("SELECT count(*) as c FROM games WHERE round = 6").get().c;
+    const j7Games = db.prepare("SELECT id, home_club_id, away_club_id, status FROM games WHERE round = 7").all();
+    const j8Count = db.prepare("SELECT count(*) as c FROM games WHERE round = 8").get().c;
+    const total = db.prepare("SELECT count(*) as c FROM games").get().c;
+
+    res.json({ success: true, steps, total, j6Count, j8Count, j7Games });
+  } catch (err) {
+    res.status(500).json({ error: err.message, stack: err.stack, steps });
+  }
+});
+
 router.get('/admin/reset-calendar', async (req, res) => {
   try {
     const { seedData } = await import('../db/seed.js');
