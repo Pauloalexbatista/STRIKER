@@ -856,10 +856,30 @@ router.get('/admin/reset-calendar', async (req, res) => {
   try {
     const { seedData } = await import('../db/seed.js');
     seedData();
-    await FootballApiService.syncMatchday(7);
-    res.json({ success: true, message: 'Calendário reposto e base de dados calibrada com sucesso!' });
+    try {
+      await FootballApiService.syncMatchday(7);
+    } catch (e) {
+      console.warn('Aviso no sync J7:', e.message);
+    }
+
+    const j7Games = db.prepare('SELECT id, home_club_id, away_club_id, status FROM games WHERE round = 7').all();
+    const j8Count = db.prepare('SELECT count(*) as c FROM games WHERE round = 8').get().c;
+    const totalCount = db.prepare('SELECT count(*) as c FROM games').get().c;
+    const predJ7 = db.prepare('SELECT count(*) as c FROM predictions p JOIN games g ON p.game_id = g.id WHERE g.round = 7').get().c;
+
+    res.json({
+      success: true,
+      message: 'Calendário reposto e base de dados calibrada com sucesso!',
+      stats: {
+        totalGames: totalCount,
+        j7GamesCount: j7Games.length,
+        j8GamesCount: j8Count,
+        j7PredictionsCount: predJ7
+      },
+      j7Sample: j7Games
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 

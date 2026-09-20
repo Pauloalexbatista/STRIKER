@@ -3,6 +3,8 @@ import { EconomyService } from '../services/economyService.js';
 import { OFFICIAL_CALENDAR } from '../calendarData.js';
 
 export function seedData() {
+  console.log('🔄 A executar seedData com calibração oficial do calendário...');
+
   // 1. Seed Clubs limpos em UTF-8 (18 oficiais da 1ª Liga + 3 suplementares)
   const clubs = [
     { id: 'SCP', name: 'Sporting CP', short_name: 'SPORTING CP', primary_color: '#00D166', secondary_color: '#FFFFFF', accent_color: '#00A34F' },
@@ -71,28 +73,28 @@ export function seedData() {
     console.error('Erro na limpeza de avatares:', err);
   }
 
-  // 3. Limpeza Segura: Purgar previsões, bónus e jogos de teste/antigos que não pertençam à J6
+  // 3. Limpeza Blindada: Desativar temporariamente Foreign Keys para eliminar dados errados sem erro
   // (Jornada 6 é 100% PRESERVADA)
   try {
-    // Eliminar previsões que não sejam da Jornada 6
-    db.exec(`
-      DELETE FROM predictions 
-      WHERE game_id NOT IN (SELECT id FROM games WHERE round = 6);
-    `);
+    db.exec('PRAGMA foreign_keys = OFF');
+
+    // Eliminar previsões de jogos que não sejam da Jornada 6 (inclui os jogos falsos da J7 que tinham apostas)
+    const delPred1 = db.prepare('DELETE FROM predictions WHERE game_id IN (SELECT id FROM games WHERE round != 6)').run();
+    const delPred2 = db.prepare('DELETE FROM predictions WHERE game_id NOT IN (SELECT id FROM games WHERE round = 6)').run();
+    console.log(`🗑️ Previsões limpas: ${delPred1.changes + delPred2.changes}`);
 
     // Eliminar bónus de rondas que não sejam a Jornada 6
-    db.exec(`
-      DELETE FROM round_bonuses 
-      WHERE round != 6;
-    `);
+    const delBonus = db.prepare('DELETE FROM round_bonuses WHERE round != 6').run();
+    console.log(`🗑️ Bónus limpos: ${delBonus.changes}`);
 
     // Eliminar todos os jogos de rondas antigas/falsas que não sejam da Jornada 6
-    db.exec(`
-      DELETE FROM games 
-      WHERE round != 6;
-    `);
+    const delGames = db.prepare('DELETE FROM games WHERE round != 6').run();
+    console.log(`🗑️ Jogos antigos limpos: ${delGames.changes}`);
+
+    db.exec('PRAGMA foreign_keys = ON');
   } catch (err) {
     console.error('Erro ao purgar dados obsoletos:', err);
+    try { db.exec('PRAGMA foreign_keys = ON'); } catch (e) {}
   }
 
   // 4. Importar o Calendário Oficial da Primeira Liga (306 Jogos / 34 Jornadas)
@@ -102,6 +104,7 @@ export function seedData() {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    let countInserted = 0;
     for (const m of OFFICIAL_CALENDAR) {
       // Para a Jornada 6, manter os registos existentes com os seus IDs oficiais
       if (m.round === 6) {
@@ -111,9 +114,10 @@ export function seedData() {
         }
       } else {
         insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score, m.away_score, m.result);
+        countInserted++;
       }
     }
-    console.log(`✅ Calendário Oficial da Primeira Liga carregado (${OFFICIAL_CALENDAR.length} jogos).`);
+    console.log(`✅ Calendário Oficial da Primeira Liga carregado (${countInserted} jogos novos/atualizados, total 306).`);
   } catch (err) {
     console.error('Erro ao importar calendário oficial:', err);
   }
