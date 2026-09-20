@@ -18,10 +18,11 @@ export function GameCard({ game, activeLeague, onOpenReport }) {
     const diff = kickoff - now;
     const finished = game.status === 'FINISHED';
     const live = game.status === 'LIVE' || (!finished && diff <= 0);
+    const isVoid = game.round === 7;
 
     setIsFinished(finished);
     setIsLive(live);
-    setIsLocked(live || finished);
+    setIsLocked(live || finished || isVoid);
 
     if (finished) {
       setTimeLeft('TERMINADO');
@@ -212,7 +213,12 @@ export function GameCard({ game, activeLeague, onOpenReport }) {
       {/* Footer: Os 3 Estados do Cartão + Contagem de apostas */}
       <div className="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
         <div className="flex-1 min-w-0 pr-2">
-          {!isLive && !isFinished ? (
+          {game.round === 7 ? (
+            <div className="flex items-center gap-1 text-[9px] text-amber-400 font-medium truncate" title="Jornada Sem Efeito (0 pts)">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+              <span className="truncate">Jornada Sem Efeito (0 pts)</span>
+            </div>
+          ) : !isLive && !isFinished ? (
             <div className="flex items-center gap-1 text-[9px] text-amber-300/90 font-medium truncate" title="Aposta Aberta até ao início do jogo (pode alterar) • Aposta Secreta">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
               <span className="truncate">Aposta Aberta (pode alterar) • Aposta Secreta</span>

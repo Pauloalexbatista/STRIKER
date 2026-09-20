@@ -111,7 +111,19 @@ export function TimelineFeed({ activeLeague, onOpenReport, onOpenLeagueModal }) 
       </div>
 
       {/* Timeline Feed of Game Cards */}
-      {loading ? (
+      {/* Banner Jornada 7 Sem Efeito */}
+        {round === 7 && (
+          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs text-center space-y-1 my-1">
+            <div className="font-bold flex items-center justify-center gap-1.5 font-orbitron text-amber-400">
+              ⚠️ Jornada 7 Sem Efeito (0 Pontos)
+            </div>
+            <p className="text-[11px] text-amber-200/80">
+              Pausa no campeonato para a Seleção Nacional. A competição de apostas retoma na <strong className="text-amber-300">Jornada 8</strong> (9 de outubro).
+            </p>
+          </div>
+        )}
+
+        {loading ? (
         <div className="py-16 text-center space-y-2">
           <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mx-auto" style={{ borderColor: activeTheme?.primary || '#ffd700', borderTopColor: 'transparent' }} />
           <p className="text-xs text-slate-400">A carregar jogos da jornada...</p>

@@ -395,7 +395,12 @@ router.post('/predictions', (req, res) => {
   }
 
   const game = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
-  if (!game) return res.status(404).json({ error: 'Jogo não encontrado' });
+    if (!game) return res.status(404).json({ error: 'Jogo não encontrado' });
+
+    // Bloqueio de jornadas anuladas ou passadas
+    if (game.round === 7 || game.round < 6) {
+      return res.status(400).json({ error: 'A Jornada 7 foi anulada e não contabiliza pontos. Os palpites abrem na Jornada 8!' });
+    }
 
   // Bloqueio rigoroso ao apito inicial
   if (game.status !== 'UPCOMING' || new Date(game.kickoff_time) <= new Date()) {

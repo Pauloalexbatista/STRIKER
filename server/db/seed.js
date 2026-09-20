@@ -1,8 +1,13 @@
 import { db } from './database.js';
 import { EconomyService } from '../services/economyService.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export function seedData() {
-  // 1. Seed Clubs limpos em UTF-8
+  // 1. Seed Clubs limpos em UTF-8 (18 oficiais da 1ª Liga + 3 suplementares)
   const clubs = [
     { id: 'SCP', name: 'Sporting CP', short_name: 'SPORTING CP', primary_color: '#00D166', secondary_color: '#FFFFFF', accent_color: '#00A34F' },
     { id: 'SLB', name: 'SL Benfica', short_name: 'SL BENFICA', primary_color: '#FF2E4D', secondary_color: '#FFFFFF', accent_color: '#D80027' },
@@ -43,19 +48,19 @@ export function seedData() {
       FCP: '🐉',
       SCB: '⚔️',
       VSC: '🛡️',
-      GOLD: '⚡'
+      GOLD: '👑'
     };
 
     const users = db.prepare('SELECT id, name, favorite_club, avatar FROM users').all();
     for (const u of users) {
-      const cleanAvatar = clubAvatars[u.favorite_club] || '⚽';
+      const cleanAvatar = clubAvatars[u.favorite_club] || '👑';
       let cleanName = u.name;
 
-      if (u.id === 'u_paulo' && (cleanName.includes('Ã') || cleanName.includes('ǟ') || cleanName.length > 15)) {
+      if (u.id === 'u_paulo' && (cleanName.includes('') || cleanName.includes('Paulo') === false || cleanName.length > 15)) {
         cleanName = 'Paulo';
       }
 
-      const needsAvatarFix = !u.avatar || u.avatar.includes('Ã') || u.avatar.includes('ǟ') || u.avatar.length > 4;
+      const needsAvatarFix = !u.avatar || u.avatar.includes('') || u.avatar.length > 4;
       const needsNameFix = cleanName !== u.name;
 
       if (needsAvatarFix || needsNameFix) {
@@ -70,100 +75,71 @@ export function seedData() {
     console.error('Erro na limpeza de avatares:', err);
   }
 
-  // 3. Garantir que os 9 Jogos Oficiais da Jornada 6 existem e estão 100% FINALIZADOS
+  // 3. Limpeza Segura: Purgar previsões, bónus e jogos de teste/antigos que não pertençam à J6
+  // (Jornada 6 é 100% PRESERVADA)
   try {
-    const jornada6Official = [
-      { id: 'g_j6_cdn_alv', round: 6, home: 'CDN', away: 'ALV', kickoff: '2026-09-12T14:30:00Z', homeScore: 1, awayScore: 3 },
-      { id: 'g_j6_cpac_fcp', round: 6, home: 'CPAC', away: 'FCP', kickoff: '2026-09-12T17:00:00Z', homeScore: 1, awayScore: 4 },
-      { id: 'g_j6_acv_vsc', round: 6, home: 'ACV', away: 'VSC', kickoff: '2026-09-12T19:30:00Z', homeScore: 2, awayScore: 1 },
-      { id: 'g_j6_fca_cdsc', round: 6, home: 'FCA', away: 'CDSC', kickoff: '2026-09-13T17:00:00Z', homeScore: 1, awayScore: 2 },
-      { id: 'g_j6_slb_gvc', round: 6, home: 'SLB', away: 'GVC', kickoff: '2026-09-13T17:00:00Z', homeScore: 3, awayScore: 1 },
-      { id: 'g_j6_fcf_scp', round: 6, home: 'FCF', away: 'SCP', kickoff: '2026-09-13T19:30:00Z', homeScore: 1, awayScore: 1 },
-      { id: 'g_j6_rav_cfea', round: 6, home: 'RAV', away: 'CFEA', kickoff: '2026-09-14T17:45:00Z', homeScore: 3, awayScore: 3 },
-      { id: 'g_j6_mfc_csm', round: 6, home: 'MFC', away: 'CSM', kickoff: '2026-09-14T19:15:00Z', homeScore: 3, awayScore: 1 },
-      { id: 'g_j6_scb_est', round: 6, home: 'SCB', away: 'EST', kickoff: '2026-09-14T19:45:00Z', homeScore: 1, awayScore: 0 }
-    ];
-
-    for (const g of jornada6Official) {
-      const existing = db.prepare('SELECT * FROM games WHERE id = ?').get(g.id);
-      if (!existing) {
-        db.prepare(`
-          INSERT INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
-          VALUES (?, ?, ?, ?, ?, 'FINISHED', ?, ?, ?)
-        `).run(g.id, g.round, g.home, g.away, g.kickoff, g.homeScore, g.awayScore, g.homeScore > g.awayScore ? 'HOME' : g.awayScore > g.homeScore ? 'AWAY' : 'DRAW');
-      }
-      // Se não estava como FINISHED com estes resultados, liquidar oficialmente
-      if (!existing || existing.status !== 'FINISHED' || existing.home_score !== g.homeScore || existing.away_score !== g.awayScore) {
-        EconomyService.settleGame(g.id, g.homeScore, g.awayScore);
-      }
-    }
-  } catch (err) {
-    console.error('Erro ao garantir jogos da Jornada 6:', err);
-  }
-
-  // 4. Garantir que os 9 Jogos da Jornada 7 existem na BD
-  try {
-    const jornada7Games = [
-      { id: 'g_j7_scp_mfc', round: 7, home: 'SCP', away: 'MFC', kickoff: '2026-09-19T17:00:00Z' },
-      { id: 'g_j7_fcp_acv', round: 7, home: 'FCP', away: 'ACV', kickoff: '2026-09-19T19:30:00Z' },
-      { id: 'g_j7_alv_cpac', round: 7, home: 'ALV', away: 'CPAC', kickoff: '2026-09-20T14:30:00Z' },
-      { id: 'g_j7_cdsc_slb', round: 7, home: 'CDSC', away: 'SLB', kickoff: '2026-09-20T17:00:00Z' },
-      { id: 'g_j7_vsc_scb', round: 7, home: 'VSC', away: 'SCB', kickoff: '2026-09-20T19:30:00Z' },
-      { id: 'g_j7_gvc_fca', round: 7, home: 'GVC', away: 'FCA', kickoff: '2026-09-21T18:00:00Z' },
-      { id: 'g_j7_csm_rav', round: 7, home: 'CSM', away: 'RAV', kickoff: '2026-09-21T18:45:00Z' },
-      { id: 'g_j7_est_fcf', round: 7, home: 'EST', away: 'FCF', kickoff: '2026-09-21T20:15:00Z' },
-      { id: 'g_j7_cfea_cdn', round: 7, home: 'CFEA', away: 'CDN', kickoff: '2026-09-21T20:45:00Z' }
-    ];
-
-    for (const g of jornada7Games) {
-      const existing = db.prepare('SELECT id FROM games WHERE id = ?').get(g.id);
-      if (!existing) {
-        db.prepare(`
-          INSERT INTO games (id, round, home_club_id, away_club_id, kickoff_time, status)
-          VALUES (?, ?, ?, ?, ?, 'UPCOMING')
-        `).run(g.id, g.round, g.home, g.away, g.kickoff);
-      }
-    }
-  } catch (err) {
-    console.error('Erro ao garantir jogos da Jornada 7:', err);
-  }
-
-  // 5. Eliminar previsões duplicadas na base de dados e recalcular pontuações
-  try {
+    // Eliminar previsões que não sejam da Jornada 6
     db.exec(`
       DELETE FROM predictions 
-      WHERE league_id IS NULL 
-      AND EXISTS (
-        SELECT 1 FROM predictions p2 
-        WHERE p2.user_id = predictions.user_id 
-          AND p2.game_id = predictions.game_id 
-          AND p2.league_id IS NOT NULL
-      );
+      WHERE game_id NOT IN (SELECT id FROM games WHERE round = 6);
     `);
 
+    // Eliminar bónus de rondas que não sejam a Jornada 6
     db.exec(`
-      DELETE FROM predictions 
-      WHERE rowid NOT IN (
-        SELECT MIN(rowid) 
-        FROM predictions 
-        GROUP BY user_id, game_id, COALESCE(league_id, '')
-      );
+      DELETE FROM round_bonuses 
+      WHERE round != 6;
     `);
 
-    // Calibrar pontuações de todos os jogos FINISHED (+3, -1, -2)
-    const finishedGames = db.prepare("SELECT id, result FROM games WHERE status = 'FINISHED'").all();
-    for (const fg of finishedGames) {
+    // Eliminar todos os jogos de rondas antigas/falsas que não sejam da Jornada 6
+    db.exec(`
+      DELETE FROM games 
+      WHERE round != 6;
+    `);
+  } catch (err) {
+    console.error('Erro ao purgar dados obsoletos:', err);
+  }
+
+  // 4. Importar o Calendário Oficial da Primeira Liga (306 Jogos / 34 Jornadas)
+  try {
+    const calendarFile = path.join(__dirname, 'calendar.json');
+    if (fs.existsSync(calendarFile)) {
+      const allMatches = JSON.parse(fs.readFileSync(calendarFile, 'utf8'));
+      
+      const insertGame = db.prepare(`
+        INSERT OR REPLACE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const m of allMatches) {
+        // Para a Jornada 6, manter os registos existentes com os seus IDs oficiais
+        if (m.round === 6) {
+          const existing = db.prepare('SELECT id FROM games WHERE id = ?').get(m.id);
+          if (!existing) {
+            insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score, m.away_score, m.result);
+          }
+        } else {
+          insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score, m.away_score, m.result);
+        }
+      }
+      console.log(`✅ Calendário Oficial da Primeira Liga carregado (${allMatches.length} jogos).`);
+    }
+  } catch (err) {
+    console.error('Erro ao importar calendário oficial:', err);
+  }
+
+  // 5. Garantir calibração rigorosa da Jornada 6 e recalcular saldos
+  try {
+    // Calibrar pontuações dos 9 jogos oficiais da Jornada 6 (+3 acerto, -1 erro, -2 falta)
+    const j6Games = db.prepare("SELECT id, result FROM games WHERE round = 6 AND status = 'FINISHED'").all();
+    for (const fg of j6Games) {
       db.prepare("UPDATE predictions SET points_won = 3.00, net_points = 3.00 WHERE game_id = ? AND choice = ? AND choice != 'MISSED'").run(fg.id, fg.result);
       db.prepare("UPDATE predictions SET points_won = 0.00, net_points = -1.00 WHERE game_id = ? AND choice != ? AND choice != 'MISSED'").run(fg.id, fg.result);
       db.prepare("UPDATE predictions SET points_won = 0.00, net_points = -2.00 WHERE game_id = ? AND choice = 'MISSED'").run(fg.id);
     }
 
-    // Atribuir bónus de campeão à vencedora da Jornada 6 (Anne)
-    EconomyService.checkAndAwardRoundBonus(6);
-
-    // Garantir explicitamente o bónus da Anne na J6
+    // Garantir bónus de campeão da Anne na J6
     try {
-      const anneUser = db.prepare("SELECT id FROM users WHERE LOWER(name) = 'anne'").get();
+      const anneUser = db.prepare("SELECT id FROM users WHERE LOWER(name) = 'anne' OR LOWER(name) = 'ana'").get();
       if (anneUser) {
         const anneLeagues = db.prepare('SELECT league_id FROM league_members WHERE user_id = ?').all(anneUser.id);
         for (const { league_id } of anneLeagues) {
@@ -180,10 +156,10 @@ export function seedData() {
       console.warn('Aviso bónus Anne:', e.message);
     }
 
-    // Recalcular saldos de forma determinística
+    // Recalcular todos os saldos de forma determinística
     EconomyService.recalculateAllBalances();
-    console.log('✅ Base de dados calibrada, Jogos J6/J7 confirmados e saldos recalculados com sucesso!');
+    console.log('✅ Base de dados calibrada: Calendário 1ª Liga (34 Jornadas) ativo, J6 preservada, J7 anulada e saldos verificados.');
   } catch (err) {
-    console.error('Erro na limpeza/recalculo de previsões:', err);
+    console.error('Erro na calibração final:', err);
   }
 }

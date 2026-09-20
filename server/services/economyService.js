@@ -78,6 +78,17 @@ export const EconomyService = {
     if (homeScore > awayScore) result = 'HOME';
     else if (awayScore > homeScore) result = 'AWAY';
 
+    // Se o jogo pertencer à Jornada 7 (anulada por decisão da liga) ou jornadas anteriores (< 6):
+    // Apenas atualiza o resultado oficial do jogo, sem gerar apostas, faltas (-2 pts) ou bónus.
+    if (game.round === 7 || game.round < 6) {
+      db.prepare(`
+        UPDATE games 
+        SET status = 'FINISHED', home_score = ?, away_score = ?, result = ? 
+        WHERE id = ?
+      `).run(homeScore, awayScore, result, gameId);
+      return db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
+    }
+
     // Se ainda estava UPCOMING, bloqueia primeiro
     if (game.status === 'UPCOMING') {
       this.lockGameAtKickoff(gameId);
@@ -157,6 +168,7 @@ export const EconomyService = {
 
   // Verificar fecho da jornada e atribuir +3 pontos extra ao campeão (ou empatados no 1º lugar)
   checkAndAwardRoundBonus(round) {
+    if (round === 7 || round < 6) return;
     const pendingGames = db.prepare(`
       SELECT COUNT(*) as count FROM games WHERE round = ? AND status != 'FINISHED'
     `).get(round).count;
