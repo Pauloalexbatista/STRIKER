@@ -2,6 +2,7 @@ import express from 'express';
 import { db } from '../db/database.js';
 import { EconomyService } from '../services/economyService.js';
 import { FootballApiService } from '../services/footballApiService.js';
+import { OFFICIAL_CALENDAR } from '../calendarData.js';
 
 export const router = express.Router();
 
@@ -351,6 +352,54 @@ router.get('/games', async (req, res) => {
   const round = req.query.round ? parseInt(req.query.round) : defaultRound;
   const userId = req.query.userId || '';
   const leagueId = req.query.leagueId || '';
+
+  // 1. Auto-cura da Jornada 7 se ainda tiver jogos falsos antigos (como g_j7_scp_mfc)
+  if (round === 7) {
+    const wrong = db.prepare("SELECT id FROM games WHERE id = 'g_j7_scp_mfc'").get();
+    if (wrong) {
+      try {
+        db.exec('PRAGMA foreign_keys = OFF');
+        db.prepare("DELETE FROM predictions WHERE game_id IN (SELECT id FROM games WHERE round != 6)").run();
+        db.prepare("DELETE FROM predictions WHERE game_id NOT IN (SELECT id FROM games WHERE round = 6)").run();
+        db.prepare("DELETE FROM round_bonuses WHERE round != 6").run();
+        db.prepare("DELETE FROM games WHERE round != 6").run();
+        db.exec('PRAGMA foreign_keys = ON');
+
+        const insert = db.prepare(`
+          INSERT OR REPLACE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const m of OFFICIAL_CALENDAR) {
+          if (m.round !== 6) {
+            insert.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score, m.away_score, m.result);
+          }
+        }
+        console.log('✅ Auto-cura da Jornada 7 e carregamento do calendário oficial executados com sucesso.');
+      } catch (e) {
+        console.error('Erro na auto-cura da Jornada 7:', e.message);
+        try { db.exec('PRAGMA foreign_keys = ON'); } catch (_) {}
+      }
+    }
+  }
+
+  // 2. Auto-carregamento dinâmico: se qualquer jornada (ex: J8 a J34) não tiver jogos, carregar do calendário oficial
+  const count = db.prepare('SELECT count(*) as c FROM games WHERE round = ?').get(round)?.c || 0;
+  if (count === 0) {
+    try {
+      const insert = db.prepare(`
+        INSERT OR REPLACE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const m of OFFICIAL_CALENDAR) {
+        if (m.round === round) {
+          insert.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score, m.away_score, m.result);
+        }
+      }
+      console.log(`✅ Jornada ${round} auto-carregada do calendário oficial com sucesso.`);
+    } catch (e) {
+      console.error(`Erro ao auto-carregar jornada ${round}:`, e.message);
+    }
+  }
 
   // Sincronizar com a API oficial se já passaram mais de 45 segundos desde o último sync
   if (Date.now() - (FootballApiService.lastSyncTime || 0) > 45000) {
