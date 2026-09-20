@@ -852,6 +852,17 @@ router.post('/users/update-club', (req, res) => {
 
 // 10. Sincronizar API de futebol
 // Rota utilitária para forçar recálculo e saneamento imediato de saldos
+router.get('/admin/reset-calendar', async (req, res) => {
+  try {
+    const { seedData } = await import('../db/seed.js');
+    seedData();
+    await FootballApiService.syncMatchday(7);
+    res.json({ success: true, message: 'Calendário reposto e base de dados calibrada com sucesso!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/admin/fix-balances', (req, res) => {
   EconomyService.recalculateAllBalances();
   res.json({ success: true, message: 'Todos os saldos foram recalculados com sucesso!' });

@@ -1,10 +1,6 @@
 import { db } from './database.js';
 import { EconomyService } from '../services/economyService.js';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { OFFICIAL_CALENDAR } from '../calendarData.js';
 
 export function seedData() {
   // 1. Seed Clubs limpos em UTF-8 (18 oficiais da 1ª Liga + 3 suplementares)
@@ -56,11 +52,11 @@ export function seedData() {
       const cleanAvatar = clubAvatars[u.favorite_club] || '👑';
       let cleanName = u.name;
 
-      if (u.id === 'u_paulo' && (cleanName.includes('') || cleanName.includes('Paulo') === false || cleanName.length > 15)) {
+      if (u.id === 'u_paulo' && (cleanName.includes('Paulo') === false || cleanName.length > 15)) {
         cleanName = 'Paulo';
       }
 
-      const needsAvatarFix = !u.avatar || u.avatar.includes('') || u.avatar.length > 4;
+      const needsAvatarFix = !u.avatar || u.avatar.length > 4;
       const needsNameFix = cleanName !== u.name;
 
       if (needsAvatarFix || needsNameFix) {
@@ -101,28 +97,23 @@ export function seedData() {
 
   // 4. Importar o Calendário Oficial da Primeira Liga (306 Jogos / 34 Jornadas)
   try {
-    const calendarFile = path.join(__dirname, 'calendar.json');
-    if (fs.existsSync(calendarFile)) {
-      const allMatches = JSON.parse(fs.readFileSync(calendarFile, 'utf8'));
-      
-      const insertGame = db.prepare(`
-        INSERT OR REPLACE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
+    const insertGame = db.prepare(`
+      INSERT OR REPLACE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
 
-      for (const m of allMatches) {
-        // Para a Jornada 6, manter os registos existentes com os seus IDs oficiais
-        if (m.round === 6) {
-          const existing = db.prepare('SELECT id FROM games WHERE id = ?').get(m.id);
-          if (!existing) {
-            insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score, m.away_score, m.result);
-          }
-        } else {
+    for (const m of OFFICIAL_CALENDAR) {
+      // Para a Jornada 6, manter os registos existentes com os seus IDs oficiais
+      if (m.round === 6) {
+        const existing = db.prepare('SELECT id FROM games WHERE id = ?').get(m.id);
+        if (!existing) {
           insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score, m.away_score, m.result);
         }
+      } else {
+        insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score, m.away_score, m.result);
       }
-      console.log(`✅ Calendário Oficial da Primeira Liga carregado (${allMatches.length} jogos).`);
     }
+    console.log(`✅ Calendário Oficial da Primeira Liga carregado (${OFFICIAL_CALENDAR.length} jogos).`);
   } catch (err) {
     console.error('Erro ao importar calendário oficial:', err);
   }
