@@ -1,5 +1,5 @@
 import express from 'express';
-import { db, backupDatabase } from '../db/database.js';
+import { db } from '../db/database.js';
 import { EconomyService } from '../services/economyService.js';
 import { FootballApiService } from '../services/footballApiService.js';
 import { OFFICIAL_CALENDAR } from '../calendarData.js';
@@ -210,7 +210,6 @@ function handleLeagueResetScores(req, res) {
   }
 
   try {
-    backupDatabase();
 
     // 1. Apagar palpites desta liga (e legados se for a l_striker)
     try {

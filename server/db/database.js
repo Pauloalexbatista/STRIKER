@@ -10,6 +10,7 @@ export const db = new DatabaseSync(dbPath);
 // Otimizações de robustez e concorrência para SQLite (compatível com todos os volumes Docker)
 try {
   db.exec(`
+    PRAGMA journal_mode = DELETE;
     PRAGMA busy_timeout = 5000;
   `);
 } catch (e) {
