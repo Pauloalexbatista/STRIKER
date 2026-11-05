@@ -1,6 +1,6 @@
-﻿import React, { useState } from 'react';
-import { Trophy, Plus, KeyRound, Share2, Check, Users, ShieldAlert, Sparkles, X, Trash2, LogOut } from 'lucide-react';
-import { createLeague, joinLeague, deleteLeague, leaveLeague } from '../services/api';
+import React, { useState } from 'react';
+import { Trophy, Plus, KeyRound, Share2, Check, Users, ShieldAlert, Sparkles, X, Trash2, LogOut, RotateCcw, AlertTriangle } from 'lucide-react';
+import { createLeague, joinLeague, deleteLeague, leaveLeague, resetLeagueScores } from '../services/api';
 
 export function LeagueModal({ 
   isOpen, 
@@ -21,6 +21,8 @@ export function LeagueModal({
   const [copiedCode, setCopiedCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [resettingId, setResettingId] = useState(null);
+  const [confirmResetLeague, setConfirmResetLeague] = useState(null);
   const [actionSuccess, setActionSuccess] = useState('');
 
   if (!isOpen) return null;
@@ -82,6 +84,23 @@ export function LeagueModal({
       setError(err.message || 'Erro ao apagar campeonato');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const executeResetLeague = async (league) => {
+    try {
+      setResettingId(league.id);
+      setError('');
+      setActionSuccess('');
+      await resetLeagueScores(league.id, userId);
+      await onRefreshLeagues();
+      setConfirmResetLeague(null);
+      setActionSuccess(`Pontuações de "${league.name}" repostas a 0.00 pts! O campeonato começou de novo.`);
+      setTimeout(() => setActionSuccess(''), 5000);
+    } catch (err) {
+      setError(err.message || 'Erro ao reiniciar campeonato');
+    } finally {
+      setResettingId(null);
     }
   };
 
@@ -233,18 +252,33 @@ export function LeagueModal({
                         </button>
 
                         {l.creator_id === userId || userId === 'u_paulo' ? (
-                          <button
-                            type="button"
-                            disabled={deletingId === l.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteLeague(l);
-                            }}
-                            className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-400 hover:text-rose-300 border border-rose-500/30 active:scale-90 transition-all cursor-pointer disabled:opacity-40"
-                            title="Apagar este campeonato"
-                          >
-                            <Trash2 size={13} className={deletingId === l.id ? 'animate-pulse' : ''} />
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              disabled={resettingId === l.id || deletingId === l.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmResetLeague(l);
+                              }}
+                              className="p-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-400 hover:text-amber-300 border border-amber-500/30 active:scale-90 transition-all cursor-pointer disabled:opacity-40"
+                              title="Reiniciar pontuações deste campeonato a 0.00 pts (apenas criador)"
+                            >
+                              <RotateCcw size={13} className={resettingId === l.id ? 'animate-spin' : ''} />
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={resettingId === l.id || deletingId === l.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteLeague(l);
+                              }}
+                              className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/30 text-rose-400 hover:text-rose-300 border border-rose-500/30 active:scale-90 transition-all cursor-pointer disabled:opacity-40"
+                              title="Apagar este campeonato"
+                            >
+                              <Trash2 size={13} className={deletingId === l.id ? 'animate-pulse' : ''} />
+                            </button>
+                          </>
                         ) : (
                           <button
                             type="button"
@@ -393,6 +427,60 @@ export function LeagueModal({
               </button>
             </div>
           </form>
+        )}
+
+        {/* Modal de Confirmação com Alerta Destacado: Reiniciar Campeonato */}
+        {confirmResetLeague && (
+          <div 
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-[#0f1422] border-2 border-amber-500 rounded-3xl w-full max-w-sm p-6 text-center shadow-[0_0_40px_rgba(245,158,11,0.35)] relative animate-in zoom-in-95 duration-150">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/60 flex items-center justify-center mx-auto mb-3 shadow-[0_0_20px_rgba(245,158,11,0.5)]">
+                <AlertTriangle size={30} className="text-amber-400 animate-pulse" />
+              </div>
+
+              <h3 className="text-base font-black font-orbitron text-amber-400 tracking-wide uppercase mb-2">
+                Atenção: Reiniciar Campeonato
+              </h3>
+
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 mb-5 text-xs text-slate-300 space-y-2 text-left">
+                <p className="font-bold text-white text-sm">
+                  Vai apagar todos os pontos do campeonato <span className="text-amber-400 font-orbitron">"{confirmResetLeague.name}"</span>!
+                </p>
+                <p className="text-amber-300 font-semibold flex items-center gap-1.5">
+                  ⚡ O campeonato vai começar de novo (todos os membros ficam a 0.00 pts).
+                </p>
+                <div className="p-2 rounded-xl bg-amber-950/40 border border-amber-500/30 text-[11px] text-amber-200">
+                  🛡️ <strong>Atenção:</strong> Apaga <u>apenas</u> os pontos deste campeonato. Se tiveres outros campeonatos ativos, eles <strong>NÃO</strong> serão afetados!
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmResetLeague(null)}
+                  disabled={resettingId === confirmResetLeague.id}
+                  className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 active:scale-95 cursor-pointer shadow-md"
+                >
+                  Cancela
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => executeResetLeague(confirmResetLeague)}
+                  disabled={resettingId === confirmResetLeague.id}
+                  className="py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-black text-xs font-black font-orbitron uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(251,191,36,0.5)] active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  {resettingId === confirmResetLeague.id ? (
+                    <RotateCcw size={15} className="animate-spin" />
+                  ) : (
+                    'Avança'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
       </div>

@@ -111,28 +111,8 @@ export function seedData() {
 
   // 5. Garantir consistência determinística de saldos (sem apagar palpites!)
   try {
-    // Garantir bónus de campeão da Anne na J6 se aplicável
-    try {
-      const anneUser = db.prepare("SELECT id FROM users WHERE LOWER(name) = 'anne' OR LOWER(name) = 'ana'").get();
-      if (anneUser) {
-        const anneLeagues = db.prepare('SELECT league_id FROM league_members WHERE user_id = ?').all(anneUser.id);
-        for (const { league_id } of anneLeagues) {
-          const hasB = db.prepare('SELECT COUNT(*) as c FROM round_bonuses WHERE user_id = ? AND round = 6 AND league_id = ?').get(anneUser.id, league_id)?.c;
-          if (!hasB) {
-            db.prepare(`
-              INSERT OR REPLACE INTO round_bonuses (id, league_id, round, user_id, bonus_points, created_at)
-              VALUES (?, ?, 6, ?, 3.00, datetime('now'))
-            `).run('bonus_j6_' + league_id + '_' + anneUser.id, league_id, anneUser.id);
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Aviso bónus Anne:', e.message);
-    }
-
-    // Recalcular todos os saldos com base no histórico real e preservado
     EconomyService.recalculateAllBalances();
-    console.log('✅ Base de dados protegida e saldos recalculados com integridade garantida.');
+    console.log('✅ Base de dados verificada e saldos consolidados com integridade garantida.');
   } catch (err) {
     console.error('Erro na verificação de saldos:', err);
   }

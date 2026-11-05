@@ -1,5 +1,5 @@
 import express from 'express';
-import { db } from '../db/database.js';
+import { db, backupDatabase } from '../db/database.js';
 import { EconomyService } from '../services/economyService.js';
 import { FootballApiService } from '../services/footballApiService.js';
 import { OFFICIAL_CALENDAR } from '../calendarData.js';
@@ -183,6 +183,69 @@ function handleLeagueDelete(req, res) {
     console.error("Erro ao apagar campeonato:", err);
     try { db.exec("PRAGMA foreign_keys = ON;"); } catch {}
     res.status(500).json({ error: `Erro ao apagar campeonato: ${err.message}` });
+  }
+}
+
+
+// 3.1b. LIGAS: Reiniciar Pontuações do Campeonato a 0.00 (apenas criador ou admin)
+router.all("/leagues/:id/reset-scores", (req, res) => handleLeagueResetScores(req, res));
+router.post("/leagues/:id/reset-scores", (req, res) => handleLeagueResetScores(req, res));
+
+function handleLeagueResetScores(req, res) {
+  const { id } = req.params;
+  const userId = req.body?.userId || req.query?.userId;
+
+  if (!userId) {
+    return res.status(400).json({ error: "Utilizador não especificado" });
+  }
+
+  const league = db.prepare("SELECT * FROM leagues WHERE id = ?").get(id);
+  if (!league) {
+    return res.status(404).json({ error: "Campeonato não encontrado" });
+  }
+
+  // Apenas o criador deste campeonato ou o utilizador Paulo pode reiniciar os resultados
+  if (league.creator_id !== userId && userId !== "u_paulo") {
+    return res.status(403).json({ error: "Apenas o criador deste campeonato tem permissão para reiniciar as pontuações!" });
+  }
+
+  try {
+    backupDatabase();
+
+    // 1. Apagar palpites desta liga (e legados se for a l_striker)
+    try {
+      if (id === 'l_striker') {
+        db.prepare("DELETE FROM predictions WHERE league_id = ? OR league_id IS NULL").run(id);
+      } else {
+        db.prepare("DELETE FROM predictions WHERE league_id = ?").run(id);
+      }
+    } catch (e) {
+      console.warn("Aviso ao limpar predictions:", e.message);
+    }
+
+    // 2. Apagar bónus desta liga
+    try {
+      if (id === 'l_striker') {
+        db.prepare("DELETE FROM round_bonuses WHERE league_id = ? OR league_id IS NULL").run(id);
+      } else {
+        db.prepare("DELETE FROM round_bonuses WHERE league_id = ?").run(id);
+      }
+    } catch (e) {
+      console.warn("Aviso ao limpar round_bonuses:", e.message);
+    }
+
+    // 3. Colocar saldo de todos os membros desta liga a 0.00
+    db.prepare("UPDATE league_members SET balance = 0.00 WHERE league_id = ?").run(id);
+
+    console.log(`🔄 O criador ${userId} reiniciou as pontuações do campeonato "${league.name}" (${id}) para 0.00 pts.`);
+
+    res.json({
+      success: true,
+      message: `As pontuações do campeonato "${league.name}" foram repostas a 0.00 pts com sucesso!`
+    });
+  } catch (err) {
+    console.error("Erro ao reiniciar pontuações do campeonato:", err);
+    res.status(500).json({ error: `Erro ao reiniciar pontuações: ${err.message}` });
   }
 }
 
@@ -564,18 +627,6 @@ router.get('/leaderboard/round/:round', (req, res) => {
   // Auto-verificar se a jornada fechou e atribuir bónus de campeão se aplicável
   try {
     EconomyService.checkAndAwardRoundBonus(round);
-    if (round === 6) {
-      const anneUser = db.prepare("SELECT id FROM users WHERE LOWER(name) = 'anne'").get();
-      if (anneUser) {
-        const hasB = db.prepare("SELECT COUNT(*) as c FROM round_bonuses WHERE user_id = ? AND round = 6").get(anneUser.id)?.c;
-        if (!hasB) {
-          db.prepare(`
-            INSERT OR REPLACE INTO round_bonuses (id, league_id, round, user_id, bonus_points, created_at)
-            VALUES (?, ?, 6, ?, 3.00, datetime('now'))
-          `).run('bonus_j6_' + anneUser.id, leagueId || 'l_striker', anneUser.id);
-        }
-      }
-    }
   } catch (e) {
     console.warn('Aviso ao verificar bónus de jornada:', e.message);
   }
@@ -793,19 +844,7 @@ router.get('/leaderboard/general', (req, res) => {
     } catch (e) {}
 
     // Garantir bónus de campeão da J6
-    try {
-      EconomyService.checkAndAwardRoundBonus(6);
-      const anneUser = db.prepare("SELECT id FROM users WHERE LOWER(name) = 'anne'").get();
-      if (anneUser) {
-        const hasB = db.prepare("SELECT COUNT(*) as c FROM round_bonuses WHERE user_id = ? AND round = 6").get(anneUser.id)?.c;
-        if (!hasB) {
-          db.prepare(`
-            INSERT OR REPLACE INTO round_bonuses (id, league_id, round, user_id, bonus_points, created_at)
-            VALUES (?, ?, 6, ?, 3.00, datetime('now'))
-          `).run('bonus_j6_' + anneUser.id, leagueId, anneUser.id);
-        }
-      }
-    } catch (e) {}
+    
 
     const members = db.prepare(`
       SELECT u.id, u.name, u.avatar, u.favorite_club, lm.balance

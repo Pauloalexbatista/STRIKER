@@ -53,6 +53,19 @@ export async function deleteLeague(leagueId, userId) {
   return res.json();
 }
 
+export async function resetLeagueScores(leagueId, userId) {
+  const res = await fetch(`${BASE_URL}/leagues/${leagueId}/reset-scores`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Erro ao reiniciar pontuações do campeonato");
+  }
+  return res.json();
+}
+
 export async function leaveLeague(leagueId, userId) {
   const res = await fetch(`${BASE_URL}/leagues/leave`, {
     method: "POST",
