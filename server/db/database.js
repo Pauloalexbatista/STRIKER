@@ -1,12 +1,59 @@
-﻿import { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = path.join(__dirname, 'striker.db');
 export const db = new DatabaseSync(dbPath);
 
+// Otimizações de robustez e concorrência para SQLite
+try {
+  db.exec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA busy_timeout = 5000;
+    PRAGMA synchronous = NORMAL;
+  `);
+} catch (e) {
+  console.warn('Aviso ao definir PRAGMAs do SQLite:', e.message);
+}
+
+// Criar backup automático diário da base de dados
+export function backupDatabase() {
+  try {
+    const backupDir = path.join(__dirname, 'backups');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+
+    if (!fs.existsSync(dbPath)) return;
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    const backupFile = path.join(backupDir, `striker_${dateStr}.db`);
+
+    // Faz cópia apenas se ainda não existir backup de hoje
+    if (!fs.existsSync(backupFile)) {
+      fs.copyFileSync(dbPath, backupFile);
+      console.log(`🛡️ Backup automático da base de dados criado: striker_${dateStr}.db`);
+
+      // Manter apenas os últimos 14 backups
+      const files = fs.readdirSync(backupDir)
+        .filter(f => f.startsWith('striker_') && f.endsWith('.db'))
+        .sort();
+
+      while (files.length > 14) {
+        const oldest = files.shift();
+        fs.unlinkSync(path.join(backupDir, oldest));
+      }
+    }
+  } catch (err) {
+    console.error('Aviso ao gerar backup da base de dados:', err.message);
+  }
+}
+
 export function initDb() {
+  backupDatabase();
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,

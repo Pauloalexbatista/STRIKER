@@ -3,7 +3,7 @@ import { EconomyService } from '../services/economyService.js';
 import { OFFICIAL_CALENDAR } from '../calendarData.js';
 
 export function seedData() {
-  console.log('🔄 A executar seedData com calibração oficial do calendário...');
+  console.log('🔄 A executar verificação de integridade da base de dados...');
 
   // 1. Seed Clubs limpos em UTF-8 (18 oficiais da 1ª Liga + 3 suplementares)
   const clubs = [
@@ -73,66 +73,45 @@ export function seedData() {
     console.error('Erro na limpeza de avatares:', err);
   }
 
-  // 3. Limpeza Blindada: Desativar temporariamente Foreign Keys para eliminar dados errados sem erro
-  // (Jornada 6 é 100% PRESERVADA)
+  // 3. Saneamento preventivo apenas de IDs de teste antigos (NUNCA elimina previsões nem pontuações de jogadores!)
   try {
-    db.exec('PRAGMA foreign_keys = OFF');
-
-    // Eliminar previsões de jogos que não sejam da Jornada 6 (inclui os jogos falsos da J7 que tinham apostas)
-    const delPred1 = db.prepare('DELETE FROM predictions WHERE game_id IN (SELECT id FROM games WHERE round != 6)').run();
-    const delPred2 = db.prepare('DELETE FROM predictions WHERE game_id NOT IN (SELECT id FROM games WHERE round = 6)').run();
-    console.log(`🗑️ Previsões limpas: ${delPred1.changes + delPred2.changes}`);
-
-    // Eliminar bónus de rondas que não sejam a Jornada 6
-    const delBonus = db.prepare('DELETE FROM round_bonuses WHERE round != 6').run();
-    console.log(`🗑️ Bónus limpos: ${delBonus.changes}`);
-
-    // Eliminar todos os jogos de rondas antigas/falsas que não sejam da Jornada 6
-    const delGames = db.prepare('DELETE FROM games WHERE round != 6').run();
-    console.log(`🗑️ Jogos antigos limpos: ${delGames.changes}`);
-
-    db.exec('PRAGMA foreign_keys = ON');
+    db.prepare("DELETE FROM games WHERE id = 'g_j7_scp_mfc'").run();
   } catch (err) {
-    console.error('Erro ao purgar dados obsoletos:', err);
-    try { db.exec('PRAGMA foreign_keys = ON'); } catch (e) {}
+    // Ignorar se não existir
   }
 
   // 4. Importar o Calendário Oficial da Primeira Liga (306 Jogos / 34 Jornadas)
+  // Utiliza INSERT OR IGNORE para NUNCA apagar nem substituir resultados ou jogos já terminados/em direto
   try {
     const insertGame = db.prepare(`
-      INSERT OR REPLACE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
+      INSERT OR IGNORE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    // Atualizar apenas a data/hora para jogos que ainda estejam como UPCOMING (sem alterar resultados gravados)
+    const updateUpcomingTime = db.prepare(`
+      UPDATE games 
+      SET kickoff_time = ? 
+      WHERE id = ? AND status = 'UPCOMING' AND home_score IS NULL
     `);
 
     let countInserted = 0;
     for (const m of OFFICIAL_CALENDAR) {
-      // Para a Jornada 6, manter os registos existentes com os seus IDs oficiais
-      if (m.round === 6) {
-        const existing = db.prepare('SELECT id FROM games WHERE id = ?').get(m.id);
-        if (!existing) {
-          insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score ?? null, m.away_score ?? null, m.result ?? null);
-        }
-      } else {
-        insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score ?? null, m.away_score ?? null, m.result ?? null);
+      const res = insertGame.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score ?? null, m.away_score ?? null, m.result ?? null);
+      if (res.changes > 0) {
         countInserted++;
+      } else {
+        updateUpcomingTime.run(m.kickoff_time, m.id);
       }
     }
-    console.log(`✅ Calendário Oficial da Primeira Liga carregado (${countInserted} jogos novos/atualizados, total 306).`);
+    console.log(`✅ Calendário Oficial da Primeira Liga verificado (${countInserted} jogos novos inseridos, histórico protegido).`);
   } catch (err) {
     console.error('Erro ao importar calendário oficial:', err);
   }
 
-  // 5. Garantir calibração rigorosa da Jornada 6 e recalcular saldos
+  // 5. Garantir consistência determinística de saldos (sem apagar palpites!)
   try {
-    // Calibrar pontuações dos 9 jogos oficiais da Jornada 6 (+3 acerto, -1 erro, -2 falta)
-    const j6Games = db.prepare("SELECT id, result FROM games WHERE round = 6 AND status = 'FINISHED'").all();
-    for (const fg of j6Games) {
-      db.prepare("UPDATE predictions SET points_won = 3.00, net_points = 3.00 WHERE game_id = ? AND choice = ? AND choice != 'MISSED'").run(fg.id, fg.result);
-      db.prepare("UPDATE predictions SET points_won = 0.00, net_points = -1.00 WHERE game_id = ? AND choice != ? AND choice != 'MISSED'").run(fg.id, fg.result);
-      db.prepare("UPDATE predictions SET points_won = 0.00, net_points = -2.00 WHERE game_id = ? AND choice = 'MISSED'").run(fg.id);
-    }
-
-    // Garantir bónus de campeão da Anne na J6
+    // Garantir bónus de campeão da Anne na J6 se aplicável
     try {
       const anneUser = db.prepare("SELECT id FROM users WHERE LOWER(name) = 'anne' OR LOWER(name) = 'ana'").get();
       if (anneUser) {
@@ -151,10 +130,10 @@ export function seedData() {
       console.warn('Aviso bónus Anne:', e.message);
     }
 
-    // Recalcular todos os saldos de forma determinística
+    // Recalcular todos os saldos com base no histórico real e preservado
     EconomyService.recalculateAllBalances();
-    console.log('✅ Base de dados calibrada: Calendário 1ª Liga (34 Jornadas) ativo, J6 preservada, J7 anulada e saldos verificados.');
+    console.log('✅ Base de dados protegida e saldos recalculados com integridade garantida.');
   } catch (err) {
-    console.error('Erro na calibração final:', err);
+    console.error('Erro na verificação de saldos:', err);
   }
 }

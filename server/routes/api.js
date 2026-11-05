@@ -353,33 +353,11 @@ router.get('/games', async (req, res) => {
   const userId = req.query.userId || '';
   const leagueId = req.query.leagueId || '';
 
-  // 1. Auto-cura da Jornada 7 se ainda tiver jogos falsos antigos (como g_j7_scp_mfc)
+  // 1. Limpeza de ID legado sem apagar previsões nem jogos reais
   if (round === 7) {
-    const wrong = db.prepare("SELECT id FROM games WHERE id = 'g_j7_scp_mfc'").get();
-    if (wrong) {
-      try {
-        db.exec('PRAGMA foreign_keys = OFF');
-        db.prepare("DELETE FROM predictions WHERE game_id IN (SELECT id FROM games WHERE round != 6)").run();
-        db.prepare("DELETE FROM predictions WHERE game_id NOT IN (SELECT id FROM games WHERE round = 6)").run();
-        db.prepare("DELETE FROM round_bonuses WHERE round != 6").run();
-        db.prepare("DELETE FROM games WHERE round != 6").run();
-        db.exec('PRAGMA foreign_keys = ON');
-
-        const insert = db.prepare(`
-          INSERT OR REPLACE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-        for (const m of OFFICIAL_CALENDAR) {
-          if (m.round !== 6) {
-            insert.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score, m.away_score, m.result);
-          }
-        }
-        console.log('✅ Auto-cura da Jornada 7 e carregamento do calendário oficial executados com sucesso.');
-      } catch (e) {
-        console.error('Erro na auto-cura da Jornada 7:', e.message);
-        try { db.exec('PRAGMA foreign_keys = ON'); } catch (_) {}
-      }
-    }
+    try {
+      db.prepare("DELETE FROM games WHERE id = 'g_j7_scp_mfc'").run();
+    } catch (_) {}
   }
 
   // 2. Auto-carregamento dinâmico: se qualquer jornada (ex: J8 a J34) não tiver jogos, carregar do calendário oficial
@@ -387,7 +365,7 @@ router.get('/games', async (req, res) => {
   if (count === 0) {
     try {
       const insert = db.prepare(`
-        INSERT OR REPLACE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
+        INSERT OR IGNORE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       for (const m of OFFICIAL_CALENDAR) {
@@ -900,49 +878,21 @@ router.post('/users/update-club', (req, res) => {
 });
 
 // 10. Sincronizar API de futebol
-// Rota utilitária para forçar recálculo e saneamento imediato de saldos
+// Rota utilitária para forçar recálculo seguro e integridade de saldos (sem apagar palpites!)
 router.all('/admin/force-reset', async (req, res) => {
   const steps = [];
   try {
-    try {
-      db.exec('PRAGMA foreign_keys = OFF');
-      steps.push('fk_off');
-    } catch (e) { steps.push({ fk_off_err: e.message }); }
-
-    const dp = db.prepare("DELETE FROM predictions WHERE game_id NOT LIKE 'g_j6_%'").run();
-    steps.push({ deletedPredictions: dp.changes });
-
-    const dbn = db.prepare("DELETE FROM round_bonuses WHERE round != 6").run();
-    steps.push({ deletedBonuses: dbn.changes });
-
-    const dg = db.prepare("DELETE FROM games WHERE round != 6").run();
-    steps.push({ deletedGames: dg.changes });
-
-    try {
-      db.exec('PRAGMA foreign_keys = ON');
-      steps.push('fk_on');
-    } catch (e) { steps.push({ fk_on_err: e.message }); }
-
     const insert = db.prepare(`
-      INSERT OR REPLACE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
+      INSERT OR IGNORE INTO games (id, round, home_club_id, away_club_id, kickoff_time, status, home_score, away_score, result)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     let insCount = 0;
     for (const m of OFFICIAL_CALENDAR) {
-      if (m.round !== 6) {
-        insert.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score ?? null, m.away_score ?? null, m.result ?? null);
-        insCount++;
-      }
+      const r = insert.run(m.id, m.round, m.home_club_id, m.away_club_id, m.kickoff_time, m.status, m.home_score ?? null, m.away_score ?? null, m.result ?? null);
+      if (r.changes > 0) insCount++;
     }
     steps.push({ insertedGames: insCount });
-
-    try {
-      await FootballApiService.syncMatchday(7);
-      steps.push('sync_j7_done');
-    } catch (e) {
-      steps.push({ sync_j7_err: e.message });
-    }
 
     try {
       EconomyService.recalculateAllBalances();
@@ -951,12 +901,7 @@ router.all('/admin/force-reset', async (req, res) => {
       steps.push({ balances_err: e.message });
     }
 
-    const j6Count = db.prepare("SELECT count(*) as c FROM games WHERE round = 6").get().c;
-    const j7Games = db.prepare("SELECT id, home_club_id, away_club_id, status FROM games WHERE round = 7").all();
-    const j8Count = db.prepare("SELECT count(*) as c FROM games WHERE round = 8").get().c;
-    const total = db.prepare("SELECT count(*) as c FROM games").get().c;
-
-    res.json({ success: true, steps, total, j6Count, j8Count, j7Games });
+    res.json({ success: true, steps, message: 'Jogos verificados e saldos recalculados em segurança!' });
   } catch (err) {
     res.status(500).json({ error: err.message, stack: err.stack, steps });
   }
