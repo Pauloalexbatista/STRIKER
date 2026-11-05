@@ -1,15 +1,27 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+process.on('uncaughtException', (err) => {
+  console.error('💥 Erro capturado no processo:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('💥 Rejeição capturada no processo:', reason);
+});
+
 import { seedData } from './db/seed.js';
 import { router as apiRouter } from './routes/api.js';
 import { FootballApiService } from './services/footballApiService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Inicializar e popular clubes se necessÃ¡rio
-seedData();
+// Inicializar e popular clubes se necessário
+try {
+  seedData();
+} catch (e) {
+  console.error('Aviso ao inicializar seedData:', e.message);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,16 +37,16 @@ app.get('/api/health', (req, res) => {
 // Rotas da API
 app.use('/api', apiRouter);
 
-// Servir frontend compilado em produÃ§Ã£o
+// Servir frontend compilado em produção
 const clientDist = path.join(__dirname, '../client/dist');
 
-// Assets com hash imutÃ¡vel (cache longa)
+// Assets com hash imutável (cache longa)
 app.use('/assets', express.static(path.join(clientDist, 'assets'), {
   maxAge: '1y',
   immutable: true
 }));
 
-// Outros estÃ¡ticos com no-cache para forÃ§ar atualizaÃ§Ã£o no browser e PWA
+// Outros estáticos com no-cache para forçar atualização no browser e PWA
 app.use(express.static(clientDist, {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html') || filePath.endsWith('sw.js') || filePath.endsWith('manifest.webmanifest')) {
@@ -54,7 +66,11 @@ app.get('*', (req, res) => {
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`⚽ STRIKER Backend a rodar em http://0.0.0.0:${PORT}`);
   // Iniciar sincronização automática periódica
-  FootballApiService.startAutoSync(1);
+  try {
+    FootballApiService.startAutoSync(1);
+  } catch (e) {
+    console.warn('Aviso no startAutoSync:', e.message);
+  }
   try {
     await FootballApiService.syncMatchday(6);
     await FootballApiService.syncMatchday(7);
@@ -62,4 +78,3 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.warn('Aviso no sync inicial:', e.message);
   }
 });
-

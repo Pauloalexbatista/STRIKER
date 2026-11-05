@@ -7,12 +7,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = path.join(__dirname, 'striker.db');
 export const db = new DatabaseSync(dbPath);
 
-// Otimizações de robustez e concorrência para SQLite
+// Otimizações de robustez e concorrência para SQLite (compatível com todos os volumes Docker)
 try {
   db.exec(`
-    PRAGMA journal_mode = WAL;
     PRAGMA busy_timeout = 5000;
-    PRAGMA synchronous = NORMAL;
   `);
 } catch (e) {
   console.warn('Aviso ao definir PRAGMAs do SQLite:', e.message);
